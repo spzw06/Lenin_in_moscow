@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Памятники Ленину в Москве — карта из Google Таблицы</title>
+    <!-- Leaflet CSS + JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #1e2f3a; }
+        .map-header {
+            background: #0f1c24; color: white; padding: 12px 20px; text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .map-header h1 { font-size: 1.5rem; font-weight: 500; }
+        .map-header p { font-size: 0.85rem; opacity: 0.8; margin-top: 5px; }
+        #map { height: calc(100vh - 105px); width: 100%; background: #c8e0e6; }
+        .leaflet-popup-content { font-size: 13px; line-height: 1.45; max-width: 280px; }
+        .legend-info {
+            position: absolute; bottom: 25px; right: 15px; background: rgba(255,255,255,0.9);
+            padding: 8px 14px; border-radius: 8px; font-size: 12px; z-index: 1000;
+            backdrop-filter: blur(4px); border-left: 4px solid #cd5c5c; pointer-events: none;
+        }
+        .footer-note {
+            position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6);
+            color: #eee; font-size: 10px; padding: 3px 8px; border-radius: 12px; z-index: 1000;
+        }
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 2000; display: flex; align-items: center;
+            justify-content: center; color: white; font-size: 1.2rem; backdrop-filter: blur(4px);
+            flex-direction: column; gap: 12px; pointer-events: none;
+        }
+        .error-message { background: #c0392b; padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; }
+        @media (max-width: 600px) {
+            .map-header h1 { font-size: 1.2rem; }
+            .legend-info { font-size: 10px; padding: 4px 10px; }
+        }
+    </style>
+</head>
+<body>
+<div class="map-header">
+    <h1>🗿 Памятники Ленину в Москве</h1>
+    <p>📌 Данные из Google Таблицы | 🟢 существует / 🔴 утрачен | клик по маркеру</p>
+</div>
+<div id="map"></div>
+<div class="legend-info">🔴 Утрачен &nbsp;|&nbsp; 🟢 Сохранился &nbsp;|&nbsp; ⚪ Не указано</div>
+<div class="footer-note">Источник: Google Таблица | Всего точек: <span id="totalCount">0</span></div>
+<div id="loading-overlay" class="loading-overlay"><div>📡 Загрузка данных из Google Таблицы...</div><div style="font-size:0.8rem;">Пожалуйста, подождите</div></div>
+
+<script>
+    const map = L.map('map').setView([55.7558, 37.6176], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
+        subdomains: 'abcd', maxZoom: 18, minZoom: 10
+    }).addTo(map);
+    
+    const markersCluster = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50 });
+    
+    function getMarkerIcon(condition) {
+        let color = '#95a5a6';
+        if (condition === 'существует') color = '#2ecc71';
+        else if (condition === 'утрачен') color = '#e74c3c';
+        else color = '#f39c12';
+        return L.divIcon({
+            html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
+            iconSize: [16, 16], className: 'custom-marker', popupAnchor: [0, -8]
+        });
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+    }
+    
+    // Преобразование строки в число с поддержкой запятой как десятичного разделителя
+    function parseNumber(s) {
+        if (s === undefined || s === null || s === '') return NaN;
+        let str = String(s).trim();
+        // Заменяем запятую на точку (для десятичных чисел)
+        str = str.replace(',', '.');
+        const num = parseFloat(str);
+        return isNaN(num) ? NaN : num;
+    }
+    
+    // Парсинг CSV с учётом кавычек и экранирования
+    function parseCSV(csvText) {
+        const rows = [];
+        let currentRow = [];
+        let currentField = '';
+        let inQuotes = false;
+        let i = 0;
+        const len = csvText.length;
+        
+        while (i < len) {
+            const ch = csvText[i];
+            if (ch === '"') {
+                if (inQuotes && csvText[i+1] === '"') {
+                    currentField += '"';
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (ch === ',' && !inQuotes) {
+                currentRow.push(currentField);
+                currentField = '';
+            } else if (ch === '\n' && !inQuotes) {
+                currentRow.push(currentField);
+                rows.push(currentRow);
+                currentRow = [];
+                currentField = '';
+            } else {
+                currentField += ch;
+            }
+            i++;
+        }
+        if (currentField !== '' || currentRow.length > 0) {
+            currentRow.push(currentField);
+            rows.push(currentRow);
+        }
+        if (rows.length === 0) return [];
+        
+        // Заголовки: первая строка, очищаем от лишних пробелов и кавычек
+        const headers = rows[0].map(h => {
+            let clean = h.trim();
+            if (clean.startsWith('"') && clean.endsWith('"')) clean = clean.slice(1, -1);
+            return clean.toLowerCase();
+        });
+        
+        const data = [];
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (row.length === 1 && row[0] === '') continue;
+            const obj = {};
+            for (let j = 0; j < headers.length; j++) {
+                let val = j < row.length ? row[j] : '';
+                if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"')) {
+                    val = val.slice(1, -1);
+                }
+                obj[headers[j]] = val;
+            }
+            data.push(obj);
+        }
+        return data;
+    }
+    
+    async function loadData() {
+        const overlay = document.getElementById('loading-overlay');
+        try {
+            // ID документа из ссылки
+            const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8y5BTHtRc6NNkyuIyMBiaCfU6fh2XILzkAzWJKiVSxYgmOaAgvgl9YdCCw2VsNw/pubhtml?gid=1499249971&single=true';
+            const docMatch = sheetUrl.match(/\/d\/e\/([a-zA-Z0-9_-]+)\/pubhtml/);
+            if (!docMatch) throw new Error('Не удалось распознать ID документа');
+            const docId = docMatch[1];
+            const gidMatch = sheetUrl.match(/[\?&]gid=([0-9]+)/);
+            const gid = gidMatch ? gidMatch[1] : '0';
+            
+            // Ссылка на CSV (экспорт)
+            const csvUrl = `https://docs.google.com/spreadsheets/d/e/${docId}/pub?gid=${gid}&single=true&output=csv`;
+            console.log('CSV URL:', csvUrl);
+            
+            // Используем прокси для обхода CORS
+            const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(csvUrl)}`;
+            const response = await fetch(proxy);
+            if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
+            const csvText = await response.text();
+            console.log('CSV получен, длина:', csvText.length);
+            
+            const data = parseCSV(csvText);
+            if (!data.length) throw new Error('Нет данных в CSV');
+            
+            // Диагностика: выводим первую строку и список ключей
+            const firstRow = data[0];
+            const keys = Object.keys(firstRow);
+            console.log('Найденные столбцы:', keys);
+            console.log('Пример первой строки:', firstRow);
+            
+            let validPoints = 0;
+            let missingLat = 0;
+            let missingLon = 0;
+            let invalidCoord = 0;
+            
+            for (const row of data) {
+                // Ищем поля lat и lon (только точные названия, без учёта регистра)
+                let latValue = null;
+                let lonValue = null;
+                for (const key of keys) {
+                    if (key === 'lat') latValue = row[key];
+                    if (key === 'lon') lonValue = row[key];
+                }
+                // Если не нашли, пробуем с заглавными (но обычно ключи уже в нижнем регистре)
+                if (latValue === undefined && row['LAT']) latValue = row['LAT'];
+                if (lonValue === undefined && row['LON']) lonValue = row['LON'];
+                
+                if (latValue === undefined || latValue === '') {
+                    missingLat++;
+                    continue;
+                }
+                if (lonValue === undefined || lonValue === '') {
+                    missingLon++;
+                    continue;
+                }
+                
+                const lat = parseNumber(latValue);
+                const lon = parseNumber(lonValue);
+                if (isNaN(lat) || isNaN(lon)) {
+                    invalidCoord++;
+                    console.warn(`Нечисловые координаты: lat=${latValue}, lon=${lonValue}`);
+                    continue;
+                }
+                
+                // Границы Москвы (чуть шире для надёжности)
+                if (lat < 55.4 || lat > 56.1 || lon < 37.1 || lon > 37.9) {
+                    // Пропускаем только совсем далёкие, но для отладки выведем
+                    if (Math.abs(lat - 55.75) > 1.2 || Math.abs(lon - 37.62) > 1.2) {
+                        console.log(`Точка вне Москвы: ${lat}, ${lon} — пропущена`);
+                        continue;
+                    }
+                }
+                
+                // Название памятника
+                let title = row.title || row.name || row.название || 'Памятник Ленину';
+                const address = row.address || row.адрес || '';
+                if (title === 'Памятник Ленину' && address) title = `Памятник Ленину (${address.substring(0, 35)})`;
+                
+                let condition = (row.condition || row.status || row.состояние || '').toLowerCase();
+                if (condition === 'существует' || condition === 'exists') condition = 'существует';
+                else if (condition === 'утрачен' || condition === 'lost') condition = 'утрачен';
+                else condition = 'не указано';
+                
+                const sculptor = row.sculptor || row.скульптор || '';
+                const year = row.year || row.год || '';
+                const description = row.description || row.описание || '';
+                const material = row.material || row.материал || '';
+                const heritage = row.heritage_status || row.охранный_статус || '';
+                const typeInfo = row.type || row.тип || '';
+                
+                let conditionIcon = condition === 'существует' ? '🟢' : (condition === 'утрачен' ? '🔴' : '⚪');
+                let popupHtml = `<strong>${escapeHtml(title)}</strong><br>`;
+                if (address) popupHtml += `📍 ${escapeHtml(address)}<br>`;
+                popupHtml += `🏷 Состояние: ${conditionIcon} ${escapeHtml(condition)}<br>`;
+                if (sculptor) popupHtml += `🎨 Скульптор: ${escapeHtml(sculptor)}<br>`;
+                if (year) popupHtml += `📅 Год: ${escapeHtml(year)}<br>`;
+                if (material) popupHtml += `🧱 Материал: ${escapeHtml(material)}<br>`;
+                if (heritage) popupHtml += `🏛 Охрана: ${escapeHtml(heritage)}<br>`;
+                if (typeInfo) popupHtml += `🏷 Тип: ${escapeHtml(typeInfo)}<br>`;
+                if (description) popupHtml += `📖 ${escapeHtml(description.substring(0, 120))}${description.length > 120 ? '…' : ''}<br>`;
+                popupHtml += `<i>Координаты: ${lat.toFixed(5)}, ${lon.toFixed(5)}</i>`;
+                
+                const marker = L.marker([lat, lon], { icon: getMarkerIcon(condition) });
+                marker.bindPopup(popupHtml);
+                markersCluster.addLayer(marker);
+                validPoints++;
+            }
+            
+            map.addLayer(markersCluster);
+            document.getElementById('totalCount').innerText = validPoints;
+            overlay.style.display = 'none';
+            
+            if (validPoints === 0) {
+                let msg = `⚠️ Не найдено точек с корректными координатами.\n`;
+                msg += `Найденные столбцы: ${keys.join(', ')}\n`;
+                msg += `Ожидались столбцы с именами "lat" и "lon" (нижний регистр).\n`;
+                msg += `Статистика: нет lat у ${missingLat} записей, нет lon у ${missingLon}, нечисловые координаты: ${invalidCoord}.`;
+                alert(msg);
+                console.error(msg);
+            } else {
+                console.log(`✅ Загружено ${validPoints} точек. Пропущено: без lat=${missingLat}, без lon=${missingLon}, нечисловые=${invalidCoord}`);
+            }
+            
+        } catch (err) {
+            console.error(err);
+            overlay.innerHTML = `<div class="error-message">❌ Ошибка: ${err.message}. Проверьте консоль.</div>`;
+            setTimeout(() => { overlay.style.display = 'none'; }, 5000);
+        }
+    }
+    
+    loadData();
+    window.addEventListener('resize', () => map.invalidateSize());
+</script>
+</body>
+</html>
