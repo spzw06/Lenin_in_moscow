@@ -41,7 +41,7 @@ function parseNumber(s) {
     return parseFloat(str);
 }
 
-// Новый парсер CSV (корректно обрабатывает кавычки и переводы строк внутри полей)
+// Парсер CSV с поддержкой кавычек и переводов строк
 function parseCSV(csvText) {
     if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
     
@@ -112,6 +112,7 @@ function parseCSV(csvText) {
     return data;
 }
 
+// Обработка данных из CSV
 function processDataFromCSV(data) {
     let validPoints = 0;
     let missingLat = 0, missingLon = 0, invalidCoord = 0;
@@ -129,6 +130,7 @@ function processDataFromCSV(data) {
         const lon = parseNumber(lonValue);
         if (isNaN(lat) || isNaN(lon)) { invalidCoord++; continue; }
 
+        // Границы Москвы (можно расширить)
         if (lat < 55.4 || lat > 56.1 || lon < 37.1 || lon > 37.9) {
             if (Math.abs(lat - 55.75) > 1.2 || Math.abs(lon - 37.62) > 1.2) continue;
         }
@@ -139,7 +141,7 @@ function processDataFromCSV(data) {
             title = `Памятник Ленину (${address.substring(0, 35)})`;
         }
 
-        // Получение и очистка статуса
+        // Статус
         let rawCondition = row['condition'] || row['состояние'] || row['status'] || '';
         let cleaned = rawCondition.toString().normalize('NFKC')
             .replace(/[\uFEFF\u200B\u00A0]/g, ' ')
@@ -153,6 +155,16 @@ function processDataFromCSV(data) {
         else if (cleaned.includes('утра')) condition = 'утрачен';
         else if (cleaned.includes('существу')) condition = 'существует';
 
+        // Парсинг photo_urls
+        let photoUrls = [];
+        const rawPhoto = row['photo_urls'] || '';
+        if (rawPhoto.trim() !== '') {
+            // Разделяем по запятой и обрезаем пробелы
+            photoUrls = rawPhoto.split(',').map(f => f.trim()).filter(f => f !== '');
+            // Формируем полные пути к изображениям (предполагаем, что файлы лежат в data/images/)
+            photoUrls = photoUrls.map(f => `data/images/${f}`);
+        }
+
         const sculptor = (row['sculptor'] || row['скульптор'] || '').trim();
         const year = (row['year'] || row['год'] || '').trim();
         const description = (row['description'] || row['описание'] || '').trim();
@@ -162,7 +174,8 @@ function processDataFromCSV(data) {
 
         allMonuments.push({
             id: idx, lat, lon, title, address, condition,
-            sculptor, year, description, material, heritage, typeInfo
+            sculptor, year, description, material, heritage, typeInfo,
+            photoUrls: photoUrls
         });
         validPoints++;
     }
@@ -175,6 +188,7 @@ function processDataFromCSV(data) {
     displayMonuments(allMonuments);
 }
 
+// Загрузка через fetch (или кастомная)
 async function loadData() {
     const overlay = document.getElementById('loading-overlay');
     try {
@@ -192,6 +206,7 @@ async function loadData() {
     }
 }
 
+// Отображение маркеров
 function displayMonuments(monuments) {
     markersCluster.clearLayers();
     markerMap.clear();
@@ -205,9 +220,11 @@ function displayMonuments(monuments) {
     updateFilterCounter();
 }
 
+// Генерация HTML для всплывающего окна с галереей
 function generatePopupHtml(mon) {
     let conditionIcon = mon.condition === 'существует' ? '🟢' : (mon.condition === 'утрачен' ? '🔴' : '⚪');
-    let html = `<strong>${escapeHtml(mon.title)}</strong><br>`;
+    let html = `<div class="popup-container">`;
+    html += `<strong>${escapeHtml(mon.title)}</strong><br>`;
     if (mon.address) html += `📍 ${escapeHtml(mon.address)}<br>`;
     html += `🏷 Состояние: ${conditionIcon} ${escapeHtml(mon.condition)}<br>`;
     if (mon.sculptor) html += `🎨 Скульптор: ${escapeHtml(mon.sculptor)}<br>`;
@@ -216,7 +233,18 @@ function generatePopupHtml(mon) {
     if (mon.heritage) html += `🏛 Охрана: ${escapeHtml(mon.heritage)}<br>`;
     if (mon.typeInfo) html += `🏷 Тип: ${escapeHtml(mon.typeInfo)}<br>`;
     if (mon.description) html += `📖 ${escapeHtml(mon.description.substring(0, 120))}${mon.description.length > 120 ? '…' : ''}<br>`;
-    html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i>`;
+    html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
+    
+    // Галерея изображений
+    if (mon.photoUrls && mon.photoUrls.length > 0) {
+        html += `<div class="photo-gallery">`;
+        for (let i = 0; i < mon.photoUrls.length; i++) {
+            const imgPath = mon.photoUrls[i];
+            html += `<img src="${imgPath}" alt="Фото памятника" class="gallery-thumb" data-full="${imgPath}" loading="lazy">`;
+        }
+        html += `</div>`;
+    }
+    html += `</div>`;
     return html;
 }
 
@@ -249,9 +277,50 @@ function bindFilterButtons() {
     document.querySelector('.filter-btn[data-filter="reset"]')?.addEventListener('click', () => applyFilter('all'));
 }
 
+// Модальное окно для полноэкранного просмотра изображений
+function initLightbox() {
+    // Создаём элементы модального окна
+    const modal = document.createElement('div');
+    modal.id = 'lightbox-modal';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+        <div class="lightbox-content">
+            <span class="lightbox-close">&times;</span>
+            <img class="lightbox-img" src="" alt="Полноразмерное изображение">
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const modalImg = modal.querySelector('.lightbox-img');
+    const closeBtn = modal.querySelector('.lightbox-close');
+    
+    // Обработчик клика на миниатюрах (делегирование)
+    document.addEventListener('click', (e) => {
+        const thumb = e.target.closest('.gallery-thumb');
+        if (thumb && thumb.dataset.full) {
+            e.preventDefault();
+            modal.style.display = 'flex';
+            modalImg.src = thumb.dataset.full;
+        }
+    });
+    
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        modalImg.src = '';
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            modalImg.src = '';
+        }
+    });
+}
+
 function init() {
     initMap();
     bindFilterButtons();
+    initLightbox();
     if (typeof window.loadDataCustom === 'function') {
         window.loadDataCustom();
     } else {

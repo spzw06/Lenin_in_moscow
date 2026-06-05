@@ -130,3 +130,72 @@ body {
         font-size: 0.75rem;
     }
 }
+
+/* Стили для галереи изображений в попапе */
+.photo-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    justify-content: center;
+}
+.gallery-thumb {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid #ddd;
+    transition: transform 0.2s, border-color 0.2s;
+}
+.gallery-thumb:hover {
+    transform: scale(1.05);
+    border-color: #2ecc71;
+}
+/* Модальное окно для полноразмерного изображения */
+#lightbox-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    cursor: pointer;
+}
+.lightbox-content {
+    position: relative;
+    max-width: 90%;
+    max-height: 90%;
+}
+.lightbox-img {
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+.lightbox-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    font-size: 40px;
+    color: white;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-weight: bold;
+}
+.lightbox-close:hover {
+    color: #ccc;
+}
+/* Стили для SVG-иконок */
+.custom-svg-marker {
+    background: transparent;
+    border: none;
+}
+.custom-svg-marker svg {
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
