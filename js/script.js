@@ -18,7 +18,6 @@ function initMap() {
     map.addLayer(markersCluster);
 }
 
-// Иконка в зависимости от статуса
 function getMarkerIcon(condition) {
     let color = '#95a5a6';
     if (condition === 'существует') color = '#2ecc71';
@@ -42,68 +41,78 @@ function parseNumber(s) {
     return parseFloat(str);
 }
 
-// Парсер CSV с разделителем ;
+// Новый парсер CSV (корректно обрабатывает кавычки и переводы строк внутри полей)
 function parseCSV(csvText) {
     if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
-    const lines = csvText.split(/\r?\n/);
-    if (lines.length === 0) return [];
-    const firstLine = lines[0];
-    let delimiter = ',';
-    if (firstLine.includes(';')) delimiter = ';';
     
-    function parseLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-            const ch = line[i];
-            if (ch === '"') {
-                if (inQuotes && line[i+1] === '"') {
-                    current += '"';
-                    i++;
-                } else {
-                    inQuotes = !inQuotes;
-                }
-            } else if (ch === delimiter && !inQuotes) {
-                result.push(current.trim());
-                current = '';
-            } else {
-                current += ch;
-            }
-        }
-        result.push(current.trim());
-        return result;
+    let delimiter = ';';
+    const firstLineEnd = csvText.indexOf('\n');
+    if (firstLineEnd !== -1) {
+        const firstLine = csvText.substring(0, firstLineEnd);
+        if (firstLine.includes(',')) delimiter = ',';
+        else if (firstLine.includes(';')) delimiter = ';';
     }
     
-    const headers = parseLine(lines[0]).map(h => {
-        if (h.startsWith('"') && h.endsWith('"')) h = h.slice(1, -1);
-        return h.toLowerCase();
+    const rows = [];
+    let currentRow = [];
+    let currentField = '';
+    let inQuotes = false;
+    let i = 0;
+    const len = csvText.length;
+    
+    while (i < len) {
+        const ch = csvText[i];
+        if (ch === '"') {
+            if (inQuotes && csvText[i+1] === '"') {
+                currentField += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (ch === delimiter && !inQuotes) {
+            currentRow.push(currentField.trim());
+            currentField = '';
+        } else if (ch === '\n' && !inQuotes) {
+            currentRow.push(currentField.trim());
+            rows.push(currentRow);
+            currentRow = [];
+            currentField = '';
+        } else {
+            currentField += ch;
+        }
+        i++;
+    }
+    if (currentField !== '' || currentRow.length > 0) {
+        currentRow.push(currentField.trim());
+        rows.push(currentRow);
+    }
+    
+    if (rows.length === 0) return [];
+    
+    const headers = rows[0].map(h => {
+        let clean = h;
+        if (clean.startsWith('"') && clean.endsWith('"')) clean = clean.slice(1, -1);
+        return clean.toLowerCase();
     });
     
     const data = [];
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line === '') continue;
-        const values = parseLine(line);
-        const row = {};
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (row.length === 1 && row[0] === '') continue;
+        const obj = {};
         for (let j = 0; j < headers.length; j++) {
-            let val = j < values.length ? values[j] : '';
+            let val = j < row.length ? row[j] : '';
             if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"')) {
                 val = val.slice(1, -1);
             }
-            row[headers[j]] = val;
+            obj[headers[j]] = val.trim();
         }
-        data.push(row);
+        data.push(obj);
     }
     return data;
 }
 
-// Новая функция: обработка распарсенных данных
 function processDataFromCSV(data) {
-    const keys = Object.keys(data[0]);
-    console.log('Найденные столбцы:', keys);
-    console.log('Пример первой строки:', data[0]);
-
     let validPoints = 0;
     let missingLat = 0, missingLon = 0, invalidCoord = 0;
     allMonuments = [];
@@ -124,23 +133,32 @@ function processDataFromCSV(data) {
             if (Math.abs(lat - 55.75) > 1.2 || Math.abs(lon - 37.62) > 1.2) continue;
         }
 
-        let title = row['title'] || row['name'] || row['название'] || 'Памятник Ленину';
-        const address = row['address'] || row['адрес'] || '';
+        let title = (row['title'] || row['name'] || row['название'] || 'Памятник Ленину').trim();
+        const address = (row['address'] || row['адрес'] || '').trim();
         if (title === 'Памятник Ленину' && address) {
             title = `Памятник Ленину (${address.substring(0, 35)})`;
         }
 
-        let condition = (row['condition'] || row['status'] || row['состояние'] || '').toLowerCase();
-        if (condition === 'существует' || condition === 'exists' || condition === 'сохранился') condition = 'существует';
-        else if (condition === 'утрачен' || condition === 'lost' || condition === 'демонтирован') condition = 'утрачен';
-        else condition = 'не указано';
+        // Получение и очистка статуса
+        let rawCondition = row['condition'] || row['состояние'] || row['status'] || '';
+        let cleaned = rawCondition.toString().normalize('NFKC')
+            .replace(/[\uFEFF\u200B\u00A0]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+        
+        let condition = 'не указано';
+        if (cleaned === 'существует' || cleaned === 'exists' || cleaned === 'сохранился') condition = 'существует';
+        else if (cleaned === 'утрачен' || cleaned === 'lost' || cleaned === 'демонтирован') condition = 'утрачен';
+        else if (cleaned.includes('утра')) condition = 'утрачен';
+        else if (cleaned.includes('существу')) condition = 'существует';
 
-        const sculptor = row['sculptor'] || row['скульптор'] || '';
-        const year = row['year'] || row['год'] || '';
-        const description = row['description'] || row['описание'] || '';
-        const material = row['material'] || row['материал'] || '';
-        const heritage = row['heritage_status'] || row['охранный_статус'] || '';
-        const typeInfo = row['type'] || row['тип'] || '';
+        const sculptor = (row['sculptor'] || row['скульптор'] || '').trim();
+        const year = (row['year'] || row['год'] || '').trim();
+        const description = (row['description'] || row['описание'] || '').trim();
+        const material = (row['material'] || row['материал'] || '').trim();
+        const heritage = (row['heritage_status'] || row['охранный_статус'] || '').trim();
+        const typeInfo = (row['type'] || row['тип'] || '').trim();
 
         allMonuments.push({
             id: idx, lat, lon, title, address, condition,
@@ -151,27 +169,20 @@ function processDataFromCSV(data) {
 
     document.getElementById('totalCount').innerText = validPoints;
     if (validPoints === 0) {
-        alert(`⚠️ Не найдено точек с координатами.\nСтолбцы: ${keys.join(', ')}\nСтатистика: нет lat у ${missingLat}, нет lon у ${missingLon}, нечисловые: ${invalidCoord}`);
+        alert('⚠️ Не найдено точек с координатами. Проверьте наличие столбцов lat/lon в CSV.');
         return;
     }
-
-    console.log(`✅ Загружено ${validPoints} точек`);
     displayMonuments(allMonuments);
 }
 
-// Обычная загрузка через fetch (для GitHub Pages)
 async function loadData() {
     const overlay = document.getElementById('loading-overlay');
     try {
-        console.log('Загрузка CSV:', CSV_URL);
         const response = await fetch(CSV_URL);
         if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
         const csvText = await response.text();
-        console.log('CSV получен, длина:', csvText.length);
-        
         const data = parseCSV(csvText);
         if (!data.length) throw new Error('Нет данных в CSV');
-        
         processDataFromCSV(data);
         overlay.style.display = 'none';
     } catch (err) {
@@ -241,7 +252,6 @@ function bindFilterButtons() {
 function init() {
     initMap();
     bindFilterButtons();
-    // Если есть кастомная загрузка (например, из config.js), используем её
     if (typeof window.loadDataCustom === 'function') {
         window.loadDataCustom();
     } else {
@@ -250,7 +260,6 @@ function init() {
     window.addEventListener('resize', () => map?.invalidateSize());
 }
 
-// Делаем функции глобальными для доступа из config.js
 window.parseCSV = parseCSV;
 window.processDataFromCSV = processDataFromCSV;
 
