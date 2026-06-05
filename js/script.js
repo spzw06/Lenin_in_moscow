@@ -38,9 +38,9 @@ async function loadSvgIcons() {
 
 // Получение цвета по статусу
 function getColorByCondition(condition) {
-    if (condition === 'утрачен') return '#95a5a6';      // серый
-    if (condition === 'существует') return '#e74c3c';   // красный
-    return '#f39c12';                                   // жёлтый
+    if (condition === 'утрачен') return '#555555';   // тёмно-серый (лучше виден на светлом)
+    if (condition === 'существует') return '#cc0000'; // насыщенный тёмно-красный
+    return '#e68a00';                                 // тёмно-оранжевый (вместо жёлтого)
 }
 
 // Создание маркера с иконкой на основе типа и статуса
