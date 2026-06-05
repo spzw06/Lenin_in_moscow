@@ -1,0 +1,1 @@
+const DEF_CSV_URL = 'lenin_monuments_coords.csv';
