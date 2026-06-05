@@ -1,5 +1,4 @@
 // ==================== НАСТРОЙКИ ====================
-// Если config.js не загружен, используем путь по умолчанию (относительный)
 const CSV_URL = (typeof window !== 'undefined' && window.DEF_CSV_URL) || 'data/lenin_monuments_coords.csv';
 
 let map;
@@ -19,7 +18,6 @@ function initMap() {
     map.addLayer(markersCluster);
 }
 
-// Иконка в зависимости от статуса
 function getMarkerIcon(condition) {
     let color = '#95a5a6';
     if (condition === 'существует') color = '#2ecc71';
@@ -43,135 +41,164 @@ function parseNumber(s) {
     return parseFloat(str);
 }
 
-// Парсер CSV с разделителем ;
+// Парсер CSV с поддержкой кавычек и переводов строк
 function parseCSV(csvText) {
     if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
-    const lines = csvText.split(/\r?\n/);
-    if (lines.length === 0) return [];
-    const firstLine = lines[0];
-    let delimiter = ',';
-    if (firstLine.includes(';')) delimiter = ';';
     
-    function parseLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-            const ch = line[i];
-            if (ch === '"') {
-                if (inQuotes && line[i+1] === '"') {
-                    current += '"';
-                    i++;
-                } else {
-                    inQuotes = !inQuotes;
-                }
-            } else if (ch === delimiter && !inQuotes) {
-                result.push(current.trim());
-                current = '';
-            } else {
-                current += ch;
-            }
-        }
-        result.push(current.trim());
-        return result;
+    let delimiter = ';';
+    const firstLineEnd = csvText.indexOf('\n');
+    if (firstLineEnd !== -1) {
+        const firstLine = csvText.substring(0, firstLineEnd);
+        if (firstLine.includes(',')) delimiter = ',';
+        else if (firstLine.includes(';')) delimiter = ';';
     }
     
-    const headers = parseLine(lines[0]).map(h => {
-        if (h.startsWith('"') && h.endsWith('"')) h = h.slice(1, -1);
-        return h.toLowerCase();
+    const rows = [];
+    let currentRow = [];
+    let currentField = '';
+    let inQuotes = false;
+    let i = 0;
+    const len = csvText.length;
+    
+    while (i < len) {
+        const ch = csvText[i];
+        if (ch === '"') {
+            if (inQuotes && csvText[i+1] === '"') {
+                currentField += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (ch === delimiter && !inQuotes) {
+            currentRow.push(currentField.trim());
+            currentField = '';
+        } else if (ch === '\n' && !inQuotes) {
+            currentRow.push(currentField.trim());
+            rows.push(currentRow);
+            currentRow = [];
+            currentField = '';
+        } else {
+            currentField += ch;
+        }
+        i++;
+    }
+    if (currentField !== '' || currentRow.length > 0) {
+        currentRow.push(currentField.trim());
+        rows.push(currentRow);
+    }
+    
+    if (rows.length === 0) return [];
+    
+    const headers = rows[0].map(h => {
+        let clean = h;
+        if (clean.startsWith('"') && clean.endsWith('"')) clean = clean.slice(1, -1);
+        return clean.toLowerCase();
     });
     
     const data = [];
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line === '') continue;
-        const values = parseLine(line);
-        const row = {};
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (row.length === 1 && row[0] === '') continue;
+        const obj = {};
         for (let j = 0; j < headers.length; j++) {
-            let val = j < values.length ? values[j] : '';
+            let val = j < row.length ? row[j] : '';
             if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"')) {
                 val = val.slice(1, -1);
             }
-            row[headers[j]] = val;
+            obj[headers[j]] = val.trim();
         }
-        data.push(row);
+        data.push(obj);
     }
     return data;
 }
 
-// Загрузка данных
+// Обработка данных из CSV
+function processDataFromCSV(data) {
+    let validPoints = 0;
+    let missingLat = 0, missingLon = 0, invalidCoord = 0;
+    allMonuments = [];
+
+    for (let idx = 0; idx < data.length; idx++) {
+        const row = data[idx];
+        let latValue = row['lat'] ?? row['latitude'] ?? row['широта'] ?? null;
+        let lonValue = row['lon'] ?? row['lng'] ?? row['longitude'] ?? row['долгота'] ?? null;
+
+        if (latValue === undefined || latValue === '') { missingLat++; continue; }
+        if (lonValue === undefined || lonValue === '') { missingLon++; continue; }
+
+        const lat = parseNumber(latValue);
+        const lon = parseNumber(lonValue);
+        if (isNaN(lat) || isNaN(lon)) { invalidCoord++; continue; }
+
+        // Границы Москвы (можно расширить)
+        if (lat < 55.4 || lat > 56.1 || lon < 37.1 || lon > 37.9) {
+            if (Math.abs(lat - 55.75) > 1.2 || Math.abs(lon - 37.62) > 1.2) continue;
+        }
+
+        let title = (row['title'] || row['name'] || row['название'] || 'Памятник Ленину').trim();
+        const address = (row['address'] || row['адрес'] || '').trim();
+        if (title === 'Памятник Ленину' && address) {
+            title = `Памятник Ленину (${address.substring(0, 35)})`;
+        }
+
+        // Статус
+        let rawCondition = row['condition'] || row['состояние'] || row['status'] || '';
+        let cleaned = rawCondition.toString().normalize('NFKC')
+            .replace(/[\uFEFF\u200B\u00A0]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+        
+        let condition = 'не указано';
+        if (cleaned === 'существует' || cleaned === 'exists' || cleaned === 'сохранился') condition = 'существует';
+        else if (cleaned === 'утрачен' || cleaned === 'lost' || cleaned === 'демонтирован') condition = 'утрачен';
+        else if (cleaned.includes('утра')) condition = 'утрачен';
+        else if (cleaned.includes('существу')) condition = 'существует';
+
+        // Парсинг photo_urls
+        let photoUrls = [];
+        const rawPhoto = row['photo_urls'] || '';
+        if (rawPhoto.trim() !== '') {
+            // Разделяем по запятой и обрезаем пробелы
+            photoUrls = rawPhoto.split(',').map(f => f.trim()).filter(f => f !== '');
+            // Формируем полные пути к изображениям (предполагаем, что файлы лежат в data/images/)
+            photoUrls = photoUrls.map(f => `data/images/${f}`);
+        }
+
+        const sculptor = (row['sculptor'] || row['скульптор'] || '').trim();
+        const year = (row['year'] || row['год'] || '').trim();
+        const description = (row['description'] || row['описание'] || '').trim();
+        const material = (row['material'] || row['материал'] || '').trim();
+        const heritage = (row['heritage_status'] || row['охранный_статус'] || '').trim();
+        const typeInfo = (row['type'] || row['тип'] || '').trim();
+
+        allMonuments.push({
+            id: idx, lat, lon, title, address, condition,
+            sculptor, year, description, material, heritage, typeInfo,
+            photoUrls: photoUrls
+        });
+        validPoints++;
+    }
+
+    document.getElementById('totalCount').innerText = validPoints;
+    if (validPoints === 0) {
+        alert('⚠️ Не найдено точек с координатами. Проверьте наличие столбцов lat/lon в CSV.');
+        return;
+    }
+    displayMonuments(allMonuments);
+}
+
+// Загрузка через fetch (или кастомная)
 async function loadData() {
     const overlay = document.getElementById('loading-overlay');
     try {
-        console.log('Загрузка CSV с GitHub:', CSV_URL);
         const response = await fetch(CSV_URL);
         if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
         const csvText = await response.text();
-        console.log('CSV получен, длина:', csvText.length);
-        
         const data = parseCSV(csvText);
         if (!data.length) throw new Error('Нет данных в CSV');
-        
-        const keys = Object.keys(data[0]);
-        console.log('Найденные столбцы:', keys);
-        console.log('Пример первой строки:', data[0]);
-        
-        let validPoints = 0;
-        let missingLat = 0, missingLon = 0, invalidCoord = 0;
-        allMonuments = [];
-        
-        for (let idx = 0; idx < data.length; idx++) {
-            const row = data[idx];
-            let latValue = row['lat'] ?? row['latitude'] ?? row['широта'] ?? null;
-            let lonValue = row['lon'] ?? row['lng'] ?? row['longitude'] ?? row['долгота'] ?? null;
-            
-            if (latValue === undefined || latValue === '') { missingLat++; continue; }
-            if (lonValue === undefined || lonValue === '') { missingLon++; continue; }
-            
-            const lat = parseNumber(latValue);
-            const lon = parseNumber(lonValue);
-            if (isNaN(lat) || isNaN(lon)) { invalidCoord++; continue; }
-            
-            if (lat < 55.4 || lat > 56.1 || lon < 37.1 || lon > 37.9) {
-                if (Math.abs(lat - 55.75) > 1.2 || Math.abs(lon - 37.62) > 1.2) continue;
-            }
-            
-            let title = row['title'] || row['name'] || row['название'] || 'Памятник Ленину';
-            const address = row['address'] || row['адрес'] || '';
-            if (title === 'Памятник Ленину' && address) {
-                title = `Памятник Ленину (${address.substring(0, 35)})`;
-            }
-            
-            let condition = (row['condition'] || row['status'] || row['состояние'] || '').toLowerCase();
-            if (condition === 'существует' || condition === 'exists' || condition === 'сохранился') condition = 'существует';
-            else if (condition === 'утрачен' || condition === 'lost' || condition === 'демонтирован') condition = 'утрачен';
-            else condition = 'не указано';
-            
-            const sculptor = row['sculptor'] || row['скульптор'] || '';
-            const year = row['year'] || row['год'] || '';
-            const description = row['description'] || row['описание'] || '';
-            const material = row['material'] || row['материал'] || '';
-            const heritage = row['heritage_status'] || row['охранный_статус'] || '';
-            const typeInfo = row['type'] || row['тип'] || '';
-            
-            allMonuments.push({
-                id: idx, lat, lon, title, address, condition,
-                sculptor, year, description, material, heritage, typeInfo
-            });
-            validPoints++;
-        }
-        
-        document.getElementById('totalCount').innerText = validPoints;
-        if (validPoints === 0) {
-            alert(`⚠️ Не найдено точек с координатами.\nСтолбцы: ${keys.join(', ')}\nСтатистика: нет lat у ${missingLat}, нет lon у ${missingLon}, нечисловые: ${invalidCoord}`);
-            overlay.style.display = 'none';
-            return;
-        }
-        
-        console.log(`✅ Загружено ${validPoints} точек`);
-        displayMonuments(allMonuments);
+        processDataFromCSV(data);
         overlay.style.display = 'none';
-        
     } catch (err) {
         console.error(err);
         overlay.innerHTML = `<div class="error-message">❌ Ошибка: ${err.message}</div>`;
@@ -179,6 +206,7 @@ async function loadData() {
     }
 }
 
+// Отображение маркеров
 function displayMonuments(monuments) {
     markersCluster.clearLayers();
     markerMap.clear();
@@ -192,9 +220,11 @@ function displayMonuments(monuments) {
     updateFilterCounter();
 }
 
+// Генерация HTML для всплывающего окна с галереей
 function generatePopupHtml(mon) {
     let conditionIcon = mon.condition === 'существует' ? '🟢' : (mon.condition === 'утрачен' ? '🔴' : '⚪');
-    let html = `<strong>${escapeHtml(mon.title)}</strong><br>`;
+    let html = `<div class="popup-container">`;
+    html += `<strong>${escapeHtml(mon.title)}</strong><br>`;
     if (mon.address) html += `📍 ${escapeHtml(mon.address)}<br>`;
     html += `🏷 Состояние: ${conditionIcon} ${escapeHtml(mon.condition)}<br>`;
     if (mon.sculptor) html += `🎨 Скульптор: ${escapeHtml(mon.sculptor)}<br>`;
@@ -203,7 +233,18 @@ function generatePopupHtml(mon) {
     if (mon.heritage) html += `🏛 Охрана: ${escapeHtml(mon.heritage)}<br>`;
     if (mon.typeInfo) html += `🏷 Тип: ${escapeHtml(mon.typeInfo)}<br>`;
     if (mon.description) html += `📖 ${escapeHtml(mon.description.substring(0, 120))}${mon.description.length > 120 ? '…' : ''}<br>`;
-    html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i>`;
+    html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
+    
+    // Галерея изображений
+    if (mon.photoUrls && mon.photoUrls.length > 0) {
+        html += `<div class="photo-gallery">`;
+        for (let i = 0; i < mon.photoUrls.length; i++) {
+            const imgPath = mon.photoUrls[i];
+            html += `<img src="${imgPath}" alt="Фото памятника" class="gallery-thumb" data-full="${imgPath}" loading="lazy">`;
+        }
+        html += `</div>`;
+    }
+    html += `</div>`;
     return html;
 }
 
@@ -236,11 +277,59 @@ function bindFilterButtons() {
     document.querySelector('.filter-btn[data-filter="reset"]')?.addEventListener('click', () => applyFilter('all'));
 }
 
+// Модальное окно для полноэкранного просмотра изображений
+function initLightbox() {
+    // Создаём элементы модального окна
+    const modal = document.createElement('div');
+    modal.id = 'lightbox-modal';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+        <div class="lightbox-content">
+            <span class="lightbox-close">&times;</span>
+            <img class="lightbox-img" src="" alt="Полноразмерное изображение">
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const modalImg = modal.querySelector('.lightbox-img');
+    const closeBtn = modal.querySelector('.lightbox-close');
+    
+    // Обработчик клика на миниатюрах (делегирование)
+    document.addEventListener('click', (e) => {
+        const thumb = e.target.closest('.gallery-thumb');
+        if (thumb && thumb.dataset.full) {
+            e.preventDefault();
+            modal.style.display = 'flex';
+            modalImg.src = thumb.dataset.full;
+        }
+    });
+    
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        modalImg.src = '';
+    });
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            modalImg.src = '';
+        }
+    });
+}
+
 function init() {
     initMap();
     bindFilterButtons();
-    loadData();
+    initLightbox();
+    if (typeof window.loadDataCustom === 'function') {
+        window.loadDataCustom();
+    } else {
+        loadData();
+    }
     window.addEventListener('resize', () => map?.invalidateSize());
 }
+
+window.parseCSV = parseCSV;
+window.processDataFromCSV = processDataFromCSV;
 
 init();
