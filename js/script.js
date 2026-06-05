@@ -7,6 +7,79 @@ let allMonuments = [];
 let currentFilter = 'all';
 let markerMap = new Map();
 
+// Хранилище SVG-иконок
+let svgIcons = {
+    фигура: null,
+    бюст: null,
+    'не указан': null
+};
+
+// Загрузка SVG-файлов
+async function loadSvgIcons() {
+    const basePath = 'data/assets/';
+    const files = {
+        фигура: 'f_type.svg',
+        бюст: 'b_type.svg',
+        'не указан': 'u_type.svg'
+    };
+    for (const [type, filename] of Object.entries(files)) {
+        try {
+            const response = await fetch(basePath + filename);
+            if (response.ok) {
+                svgIcons[type] = await response.text();
+            } else {
+                console.warn(`Не удалось загрузить иконку ${type}: ${response.status}`);
+            }
+        } catch (err) {
+            console.warn(`Ошибка загрузки иконки ${type}:`, err);
+        }
+    }
+}
+
+// Получение цвета по статусу
+function getColorByCondition(condition) {
+    if (condition === 'утрачен') return '#95a5a6';      // серый
+    if (condition === 'существует') return '#e74c3c';   // красный
+    return '#f39c12';                                   // жёлтый
+}
+
+// Создание маркера с иконкой на основе типа и статуса
+function getMarkerIcon(type, condition) {
+    // Определяем, какой SVG использовать
+    let svgContent = null;
+    if (type === 'фигура') svgContent = svgIcons.фигура;
+    else if (type === 'бюст') svgContent = svgIcons.бюст;
+    else svgContent = svgIcons['не указан'];
+    
+    const color = getColorByCondition(condition);
+    
+    if (svgContent) {
+        // Заменяем цвет в SVG (ищем атрибуты fill и stroke)
+        let coloredSvg = svgContent;
+        // Простейшая замена: заменяем fill="..." и stroke="..." на нужный цвет
+        coloredSvg = coloredSvg.replace(/fill="[^"]*"/g, `fill="${color}"`);
+        coloredSvg = coloredSvg.replace(/stroke="[^"]*"/g, `stroke="${color}"`);
+        // Если атрибуты без кавычек
+        coloredSvg = coloredSvg.replace(/fill=[^ >]+/g, `fill="${color}"`);
+        coloredSvg = coloredSvg.replace(/stroke=[^ >]+/g, `stroke="${color}"`);
+        
+        return L.divIcon({
+            html: coloredSvg,
+            iconSize: [28, 28],
+            className: 'custom-svg-marker',
+            popupAnchor: [0, -14]
+        });
+    } else {
+        // fallback – цветной кружок
+        return L.divIcon({
+            html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
+            iconSize: [18, 18],
+            className: 'custom-marker',
+            popupAnchor: [0, -9]
+        });
+    }
+}
+
 // Инициализация карты
 function initMap() {
     map = L.map('map').setView([55.7558, 37.6176], 11);
@@ -16,17 +89,6 @@ function initMap() {
     }).addTo(map);
     markersCluster = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50 });
     map.addLayer(markersCluster);
-}
-
-function getMarkerIcon(condition) {
-    let color = '#95a5a6';
-    if (condition === 'существует') color = '#2ecc71';
-    else if (condition === 'утрачен') color = '#e74c3c';
-    else color = '#f39c12';
-    return L.divIcon({
-        html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
-        iconSize: [16, 16], className: 'custom-marker', popupAnchor: [0, -8]
-    });
 }
 
 function escapeHtml(str) {
@@ -130,7 +192,6 @@ function processDataFromCSV(data) {
         const lon = parseNumber(lonValue);
         if (isNaN(lat) || isNaN(lon)) { invalidCoord++; continue; }
 
-        // Границы Москвы (можно расширить)
         if (lat < 55.4 || lat > 56.1 || lon < 37.1 || lon > 37.9) {
             if (Math.abs(lat - 55.75) > 1.2 || Math.abs(lon - 37.62) > 1.2) continue;
         }
@@ -155,13 +216,15 @@ function processDataFromCSV(data) {
         else if (cleaned.includes('утра')) condition = 'утрачен';
         else if (cleaned.includes('существу')) condition = 'существует';
 
-        // Парсинг photo_urls
+        // Тип памятника (для иконки)
+        let monumentType = (row['type'] || row['тип'] || 'не указан').trim().toLowerCase();
+        if (monumentType !== 'фигура' && monumentType !== 'бюст') monumentType = 'не указан';
+
+        // Парсинг photo_urls (как в вашем коде)
         let photoUrls = [];
         const rawPhoto = row['photo_urls'] || '';
         if (rawPhoto.trim() !== '') {
-            // Разделяем по запятой и обрезаем пробелы
             photoUrls = rawPhoto.split(',').map(f => f.trim()).filter(f => f !== '');
-            // Формируем полные пути к изображениям (предполагаем, что файлы лежат в data/images/)
             photoUrls = photoUrls.map(f => `data/images/${f}`);
         }
 
@@ -170,11 +233,12 @@ function processDataFromCSV(data) {
         const description = (row['description'] || row['описание'] || '').trim();
         const material = (row['material'] || row['материал'] || '').trim();
         const heritage = (row['heritage_status'] || row['охранный_статус'] || '').trim();
-        const typeInfo = (row['type'] || row['тип'] || '').trim();
+        const typeInfo = (row['type'] || row['тип'] || '').trim(); // сохраняем оригинал для попапа
 
         allMonuments.push({
             id: idx, lat, lon, title, address, condition,
             sculptor, year, description, material, heritage, typeInfo,
+            monumentType: monumentType, // используем для иконки
             photoUrls: photoUrls
         });
         validPoints++;
@@ -188,7 +252,49 @@ function processDataFromCSV(data) {
     displayMonuments(allMonuments);
 }
 
-// Загрузка через fetch (или кастомная)
+// Отображение маркеров с новыми иконками
+function displayMonuments(monuments) {
+    markersCluster.clearLayers();
+    markerMap.clear();
+    for (const mon of monuments) {
+        const popupHtml = generatePopupHtml(mon);
+        const icon = getMarkerIcon(mon.monumentType, mon.condition);
+        const marker = L.marker([mon.lat, mon.lon], { icon: icon });
+        marker.bindPopup(popupHtml);
+        markersCluster.addLayer(marker);
+        markerMap.set(mon.id, marker);
+    }
+    updateFilterCounter();
+}
+
+// Генерация HTML для попапа (без изменений, кроме удаления старой иконки)
+function generatePopupHtml(mon) {
+    let conditionIcon = mon.condition === 'существует' ? '🟢' : (mon.condition === 'утрачен' ? '🔴' : '⚪');
+    let html = `<div class="popup-container">`;
+    html += `<strong>${escapeHtml(mon.title)}</strong><br>`;
+    if (mon.address) html += `📍 ${escapeHtml(mon.address)}<br>`;
+    html += `🏷 Состояние: ${conditionIcon} ${escapeHtml(mon.condition)}<br>`;
+    if (mon.sculptor) html += `🎨 Скульптор: ${escapeHtml(mon.sculptor)}<br>`;
+    if (mon.year) html += `📅 Год: ${escapeHtml(mon.year)}<br>`;
+    if (mon.material) html += `🧱 Материал: ${escapeHtml(mon.material)}<br>`;
+    if (mon.heritage) html += `🏛 Охрана: ${escapeHtml(mon.heritage)}<br>`;
+    if (mon.typeInfo) html += `🏷 Тип: ${escapeHtml(mon.typeInfo)}<br>`;
+    if (mon.description) html += `📖 ${escapeHtml(mon.description.substring(0, 120))}${mon.description.length > 120 ? '…' : ''}<br>`;
+    html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
+    
+    if (mon.photoUrls && mon.photoUrls.length > 0) {
+        html += `<div class="photo-gallery">`;
+        for (let i = 0; i < mon.photoUrls.length; i++) {
+            const imgPath = mon.photoUrls[i];
+            html += `<img src="${imgPath}" alt="Фото памятника" class="gallery-thumb" data-full="${imgPath}" loading="lazy">`;
+        }
+        html += `</div>`;
+    }
+    html += `</div>`;
+    return html;
+}
+
+// Загрузка данных (без изменений)
 async function loadData() {
     const overlay = document.getElementById('loading-overlay');
     try {
@@ -205,49 +311,6 @@ async function loadData() {
         setTimeout(() => overlay.style.display = 'none', 5000);
     }
 }
-
-// Отображение маркеров
-function displayMonuments(monuments) {
-    markersCluster.clearLayers();
-    markerMap.clear();
-    for (const mon of monuments) {
-        const popupHtml = generatePopupHtml(mon);
-        const marker = L.marker([mon.lat, mon.lon], { icon: getMarkerIcon(mon.condition) });
-        marker.bindPopup(popupHtml);
-        markersCluster.addLayer(marker);
-        markerMap.set(mon.id, marker);
-    }
-    updateFilterCounter();
-}
-
-// Генерация HTML для всплывающего окна с галереей
-function generatePopupHtml(mon) {
-    let conditionIcon = mon.condition === 'существует' ? '🟢' : (mon.condition === 'утрачен' ? '🔴' : '⚪');
-    let html = `<div class="popup-container">`;
-    html += `<strong>${escapeHtml(mon.title)}</strong><br>`;
-    if (mon.address) html += `📍 ${escapeHtml(mon.address)}<br>`;
-    html += `🏷 Состояние: ${conditionIcon} ${escapeHtml(mon.condition)}<br>`;
-    if (mon.sculptor) html += `🎨 Скульптор: ${escapeHtml(mon.sculptor)}<br>`;
-    if (mon.year) html += `📅 Год: ${escapeHtml(mon.year)}<br>`;
-    if (mon.material) html += `🧱 Материал: ${escapeHtml(mon.material)}<br>`;
-    if (mon.heritage) html += `🏛 Охрана: ${escapeHtml(mon.heritage)}<br>`;
-    if (mon.typeInfo) html += `🏷 Тип: ${escapeHtml(mon.typeInfo)}<br>`;
-    if (mon.description) html += `📖 ${escapeHtml(mon.description.substring(0, 120))}${mon.description.length > 120 ? '…' : ''}<br>`;
-    html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
-    
-    // Галерея изображений
-    if (mon.photoUrls && mon.photoUrls.length > 0) {
-        html += `<div class="photo-gallery">`;
-        for (let i = 0; i < mon.photoUrls.length; i++) {
-            const imgPath = mon.photoUrls[i];
-            html += `<img src="${imgPath}" alt="Фото памятника" class="gallery-thumb" data-full="${imgPath}" loading="lazy">`;
-        }
-        html += `</div>`;
-    }
-    html += `</div>`;
-    return html;
-}
-
 function applyFilter(filterValue) {
     currentFilter = filterValue;
     let filtered = filterValue === 'all' ? allMonuments : allMonuments.filter(m => m.condition === filterValue);
@@ -256,6 +319,14 @@ function applyFilter(filterValue) {
         if (btn.getAttribute('data-filter') === filterValue) btn.classList.add('active');
         else btn.classList.remove('active');
     });
+																		
+								 
+									   
+				   
+						   
+																								
+															   
+	 
 }
 
 function updateFilterCounter() {
@@ -316,11 +387,11 @@ function initLightbox() {
         }
     });
 }
-
-function init() {
+async function init() {
     initMap();
     bindFilterButtons();
     initLightbox();
+    await loadSvgIcons();      // загружаем иконки перед отображением
     if (typeof window.loadDataCustom === 'function') {
         window.loadDataCustom();
     } else {
@@ -331,5 +402,4 @@ function init() {
 
 window.parseCSV = parseCSV;
 window.processDataFromCSV = processDataFromCSV;
-
 init();
