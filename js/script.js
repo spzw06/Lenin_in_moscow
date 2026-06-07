@@ -85,7 +85,7 @@ function initMap() {
     map = L.map('map').setView([55.7558, 37.6176], 11);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
-        subdomains: 'abcd', maxZoom: 18, minZoom: 10
+        subdomains: 'abcd', maxZoom: 18, minZoom: 9
     }).addTo(map);
 	markersCluster = L.markerClusterGroup({
     chunkedLoading: true,
