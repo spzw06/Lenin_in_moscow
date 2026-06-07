@@ -18,17 +18,16 @@
 </head>
 <body>
 <div class="map-header">
-    <h1>🗿 Памятники Ленину в Москве</h1>
-    <p>📌 Данные из GitHub репозитория | 🟢 существует / 🔴 утрачен | клик по маркеру</p>
+    <h1>Памятники Ленину в Москве</h1>
+    <p>📌 Данные из GitHub репозитория | для информации - клик по маркеру</p>
 </div>
 <div class="filter-bar">
     <button class="filter-btn active" data-filter="all">Все точки</button>
-    <button class="filter-btn" data-filter="существует">🟢 Существующие</button>
-    <button class="filter-btn" data-filter="утрачен">🔴 Утраченные</button>
+    <button class="filter-btn" data-filter="существует">🔴 Существующие</button>
+    <button class="filter-btn" data-filter="утрачен">🔘 Утраченные</button>
     <button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить фильтр</button>
 </div>
 <div id="map"></div>
-<div class="legend-info">🔴 Утрачен &nbsp;|&nbsp; 🟢 Сохранился &nbsp;|&nbsp; ⚪ Не указано</div>
 <div class="footer-note">Источник: GitHub | Всего точек: <span id="totalCount">0</span></div>
 <div id="loading-overlay" class="loading-overlay"><div>📡 Загрузка данных из репозитория...</div><div style="font-size:0.8rem;">Пожалуйста, подождите</div></div>
 </body>

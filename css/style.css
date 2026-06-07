@@ -69,19 +69,6 @@ body {
 .leaflet-popup-content strong {
     color: #1e3c4a;
 }
-.legend-info {
-    position: absolute;
-    bottom: 25px;
-    right: 15px;
-    background: rgba(255,255,255,0.9);
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-size: 12px;
-    z-index: 1000;
-    backdrop-filter: blur(4px);
-    border-left: 4px solid #cd5c5c;
-    pointer-events: none;
-}
 .footer-note {
     position: absolute;
     bottom: 10px;
@@ -120,10 +107,6 @@ body {
 @media (max-width: 600px) {
     .map-header h1 {
         font-size: 1.2rem;
-    }
-    .legend-info {
-        font-size: 10px;
-        padding: 4px 10px;
     }
     .filter-btn {
         padding: 4px 12px;
@@ -206,4 +189,7 @@ body {
     height: 55px;
     display: block;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+}
+.leaflet-control-attribution .leaflet-attribution-flag {
+    display: none !important;
 }

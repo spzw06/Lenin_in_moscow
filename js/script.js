@@ -87,7 +87,11 @@ function initMap() {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
         subdomains: 'abcd', maxZoom: 18, minZoom: 10
     }).addTo(map);
-    markersCluster = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50 });
+	markersCluster = L.markerClusterGroup({
+    chunkedLoading: true,
+    maxClusterRadius: 35,
+    disableClusteringAtZoom: 15   // при зуме >=15 кластеры не создаются
+	});
     map.addLayer(markersCluster);
 }
 
@@ -337,8 +341,8 @@ function updateFilterCounter() {
     const existsBtn = document.querySelector('.filter-btn[data-filter="существует"]');
     const lostBtn = document.querySelector('.filter-btn[data-filter="утрачен"]');
     if (allBtn) allBtn.innerHTML = `Все точки (${allCount})`;
-    if (existsBtn) existsBtn.innerHTML = `🟢 Существующие (${existsCount})`;
-    if (lostBtn) lostBtn.innerHTML = `🔴 Утраченные (${lostCount})`;
+    if (existsBtn) existsBtn.innerHTML = `🔴 Существующие (${existsCount})`;
+    if (lostBtn) lostBtn.innerHTML = `🔘 Утраченные (${lostCount})`;
 }
 
 function bindFilterButtons() {
