@@ -193,3 +193,13 @@ body {
 .leaflet-control-attribution .leaflet-attribution-flag {
     display: none !important;
 }
+.desc-container a {
+    color: #1e2f3a;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: bold;
+	font-style: italic;
+}
+.desc-container a:hover {
+    text-decoration: underline;
+}

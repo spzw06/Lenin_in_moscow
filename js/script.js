@@ -283,8 +283,18 @@ function generatePopupHtml(mon) {
     if (mon.material) html += `🧱 Материал: ${escapeHtml(mon.material)}<br>`;
     if (mon.heritage) html += `🏛 Охрана: ${escapeHtml(mon.heritage)}<br>`;
     if (mon.typeInfo) html += `🏷 Тип: ${escapeHtml(mon.typeInfo)}<br>`;
-    if (mon.description) html += `📖 ${escapeHtml(mon.description.substring(0, 120))}${mon.description.length > 120 ? '…' : ''}<br>`;
-    html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
+    if (mon.description) {
+		const fullDesc = escapeHtml(mon.description);
+		if (fullDesc.length > 120) {
+			const shortDesc = fullDesc.substring(0, 120);
+			// Сохраняем полный текст в data-атрибуте (без экранирования кавычек для HTML)
+			const safeFullDesc = fullDesc.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+			html += `<div class="desc-container" data-full="${safeFullDesc}">📖 ${shortDesc}... <a href="#" class="expand-desc">Подробнее</a></div>`;
+		} else {
+			html += `<div>📖 ${fullDesc}</div>`;
+		}
+	}
+	html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
     
     if (mon.photoUrls && mon.photoUrls.length > 0) {
         html += `<div class="photo-gallery">`;
@@ -370,15 +380,29 @@ function initLightbox() {
     const closeBtn = modal.querySelector('.lightbox-close');
     
     // Обработчик клика на миниатюрах (делегирование)
-    document.addEventListener('click', (e) => {
-        const thumb = e.target.closest('.gallery-thumb');
-        if (thumb && thumb.dataset.full) {
-            e.preventDefault();
-            modal.style.display = 'flex';
-            modalImg.src = thumb.dataset.full;
-        }
-    });
+    // document.addEventListener('click', (e) => {
+        // const thumb = e.target.closest('.gallery-thumb');
+        // if (thumb && thumb.dataset.full) {
+            // e.preventDefault();
+            // modal.style.display = 'flex';
+            // modalImg.src = thumb.dataset.full;
+        // }
+    // });
     
+	document.addEventListener('click', (e) => {
+		const expandLink = e.target.closest('.expand-desc');
+		if (expandLink) {
+			e.preventDefault();
+			const container = expandLink.closest('.desc-container');
+			if (container) {
+				const fullText = container.getAttribute('data-full');
+				if (fullText) {
+					container.innerHTML = `📖 ${fullText}`;
+				}
+			}
+		}
+	});
+	
     closeBtn.addEventListener('click', () => {
         modal.style.display = 'none';
         modalImg.src = '';
@@ -390,7 +414,11 @@ function initLightbox() {
             modalImg.src = '';
         }
     });
+	
+	
 }
+
+
 async function init() {
     initMap();
     bindFilterButtons();
@@ -406,4 +434,5 @@ async function init() {
 
 window.parseCSV = parseCSV;
 window.processDataFromCSV = processDataFromCSV;
+
 init();
