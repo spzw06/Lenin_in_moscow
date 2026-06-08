@@ -151,14 +151,19 @@ body {
 }
 .lightbox-content {
     position: relative;
-    max-width: 90%;
-    max-height: 90%;
+    max-width: 95%;
+    max-height: 95%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 .lightbox-img {
     max-width: 100%;
-    max-height: 90vh;
+    max-height: 70vh;  /* ← главное изменение: изображение занимает не более 70% высоты экрана */
     border-radius: 8px;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    object-fit: contain;
 }
 .lightbox-close {
     position: absolute;
@@ -180,14 +185,6 @@ body {
     border: none;
 }
 .custom-svg-marker svg {
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-}
-
-/* Стили для SVG-иконок - принудительный размер */
-.custom-svg-marker svg {
-    width: 55px;
-    height: 55px;
-    display: block;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
 }
 .leaflet-control-attribution .leaflet-attribution-flag {
@@ -201,5 +198,35 @@ body {
 	font-style: italic;
 }
 .desc-container a:hover {
+    text-decoration: underline;
+}
+/* Стили для подписи в модальном окне */
+.lightbox-attribution {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 8px;
+    font-size: 12px;
+    color: #eee;
+    text-align: center;
+    width: auto;
+    max-width: 90%;
+}
+.attribution-text {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+.attribution-text span {
+    background: rgba(255,255,255,0.1);
+    padding: 4px 8px;
+    border-radius: 20px;
+}
+.attribution-text a {
+    color: #2ecc71;
+    text-decoration: none;
+}
+.attribution-text a:hover {
     text-decoration: underline;
 }

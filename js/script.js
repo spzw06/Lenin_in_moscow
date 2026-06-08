@@ -6,6 +6,7 @@ let markersCluster;
 let allMonuments = [];
 let currentFilter = 'all';
 let markerMap = new Map();
+let photoAttribution = {}; // словарь: имя файла -> { author, source, title }
 
 // Хранилище SVG-иконок
 let svgIcons = {
@@ -45,7 +46,6 @@ function getColorByCondition(condition) {
 
 // Создание маркера с иконкой на основе типа и статуса
 function getMarkerIcon(type, condition) {
-    // Определяем, какой SVG использовать
     let svgContent = null;
     if (type === 'фигура') svgContent = svgIcons.фигура;
     else if (type === 'бюст') svgContent = svgIcons.бюст;
@@ -54,28 +54,32 @@ function getMarkerIcon(type, condition) {
     const color = getColorByCondition(condition);
     
     if (svgContent) {
-        // Заменяем цвет в SVG (ищем атрибуты fill и stroke)
-        let coloredSvg = svgContent;
-        // Простейшая замена: заменяем fill="..." и stroke="..." на нужный цвет
-        coloredSvg = coloredSvg.replace(/fill="[^"]*"/g, `fill="${color}"`);
-        coloredSvg = coloredSvg.replace(/stroke="[^"]*"/g, `stroke="${color}"`);
-        // Если атрибуты без кавычек
-        coloredSvg = coloredSvg.replace(/fill=[^ >]+/g, `fill="${color}"`);
-        coloredSvg = coloredSvg.replace(/stroke=[^ >]+/g, `stroke="${color}"`);
-        
-        return L.divIcon({
-            html: coloredSvg,
-            iconSize: [28, 28],
-            className: 'custom-svg-marker',
-            popupAnchor: [0, -14]
-        });
-    } else {
+		let coloredSvg = svgContent;
+		coloredSvg = coloredSvg.replace(/fill="[^"]*"/g, `fill="${color}"`);
+		coloredSvg = coloredSvg.replace(/stroke="[^"]*"/g, `stroke="${color}"`);
+		coloredSvg = coloredSvg.replace(/fill=[^ >]+/g, `fill="${color}"`);
+		coloredSvg = coloredSvg.replace(/stroke=[^ >]+/g, `stroke="${color}"`);
+		
+		const size = 50; // желаемый размер в пикселях (всота = ширина)
+		// Принудительно добавляем width и height в тег <svg>
+		coloredSvg = coloredSvg.replace(/<svg /i, `<svg width="${size}" height="${size}" `);
+		
+		return L.divIcon({
+			html: coloredSvg,
+			iconSize: [size, size],
+			iconAnchor: [size/2, size],
+			popupAnchor: [0, -size],
+			className: 'custom-svg-marker'
+		});
+	} else {
         // fallback – цветной кружок
+        const fallbackSize = 18;
         return L.divIcon({
-            html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
-            iconSize: [18, 18],
-            className: 'custom-marker',
-            popupAnchor: [0, -9]
+            html: `<div style="background-color: ${color}; width: ${fallbackSize}px; height: ${fallbackSize}px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
+            iconSize: [fallbackSize, fallbackSize],
+            iconAnchor: [fallbackSize/2, fallbackSize/2],
+            popupAnchor: [0, -fallbackSize/2],
+            className: 'custom-marker'
         });
     }
 }
@@ -256,6 +260,29 @@ function processDataFromCSV(data) {
     displayMonuments(allMonuments);
 }
 
+async function loadPhotoAttribution() {
+    const attributionCsvUrl = 'data/images/photo_attribution.csv';
+    try {
+        const response = await fetch(attributionCsvUrl);
+        if (!response.ok) return;
+        const csvText = await response.text();
+        const data = parseCSV(csvText); // используем существующий парсер CSV
+        for (const row of data) {
+            const fileName = row['name']?.trim();
+            if (fileName) {
+                photoAttribution[fileName] = {
+                    author: row['author']?.trim() || '',
+                    source: row['source']?.trim() || '',
+                    title: row['title']?.trim() || ''
+                };
+            }
+        }
+        console.log('✅ Загружена атрибуция для', Object.keys(photoAttribution).length, 'фото');
+    } catch (err) {
+        console.warn('Не удалось загрузить photo_attribution.csv:', err);
+    }
+}
+
 // Отображение маркеров с новыми иконками
 function displayMonuments(monuments) {
     markersCluster.clearLayers();
@@ -273,7 +300,7 @@ function displayMonuments(monuments) {
 
 // Генерация HTML для попапа (без изменений, кроме удаления старой иконки)
 function generatePopupHtml(mon) {
-    let conditionIcon = mon.condition === 'существует' ? '🟢' : (mon.condition === 'утрачен' ? '🔴' : '⚪');
+    let conditionIcon = mon.condition === 'существует' ? '🔴' : (mon.condition === 'утрачен' ? '🔘' : '🔴');
     let html = `<div class="popup-container">`;
     html += `<strong>${escapeHtml(mon.title)}</strong><br>`;
     if (mon.address) html += `📍 ${escapeHtml(mon.address)}<br>`;
@@ -364,7 +391,6 @@ function bindFilterButtons() {
 
 // Модальное окно для полноэкранного просмотра изображений
 function initLightbox() {
-    // Создаём элементы модального окна
     const modal = document.createElement('div');
     modal.id = 'lightbox-modal';
     modal.style.display = 'none';
@@ -372,50 +398,77 @@ function initLightbox() {
         <div class="lightbox-content">
             <span class="lightbox-close">&times;</span>
             <img class="lightbox-img" src="" alt="Полноразмерное изображение">
+            <div class="lightbox-attribution"></div>
         </div>
     `;
     document.body.appendChild(modal);
     
     const modalImg = modal.querySelector('.lightbox-img');
+    const modalAttr = modal.querySelector('.lightbox-attribution');
     const closeBtn = modal.querySelector('.lightbox-close');
     
-    // Обработчик клика на миниатюрах (делегирование)
-    // document.addEventListener('click', (e) => {
-        // const thumb = e.target.closest('.gallery-thumb');
-        // if (thumb && thumb.dataset.full) {
-            // e.preventDefault();
-            // modal.style.display = 'flex';
-            // modalImg.src = thumb.dataset.full;
-        // }
-    // });
+    // Обработчик клика на миниатюрах (восстанавливаем, но с добавлением атрибуции)
+    document.addEventListener('click', (e) => {
+        const thumb = e.target.closest('.gallery-thumb');
+        if (thumb && thumb.dataset.full) {
+            e.preventDefault();
+            const fullPath = thumb.dataset.full;
+            modalImg.src = fullPath;
+            
+            // Извлекаем имя файла из пути (пример: data/images/фото.webp)
+            const parts = fullPath.split('/');
+            const fileName = parts[parts.length - 1];
+            const attr = photoAttribution[fileName];
+            
+            if (attr && (attr.author || attr.source)) {
+                let attrHtml = '<div class="attribution-text">';
+                if (attr.author) attrHtml += `<span>Автор: ${escapeHtml(attr.author)}</span>`;
+                if (attr.source) {
+                    if (attr.source.startsWith('http')) {
+                        attrHtml += `<span>Источник: <a href="${escapeHtml(attr.source)}" target="_blank" rel="noopener noreferrer">${escapeHtml(attr.source)}</a></span>`;
+                    } else {
+                        attrHtml += `<span>Источник: ${escapeHtml(attr.source)}</span>`;
+                    }
+                }
+                attrHtml += `</div>`;
+                modalAttr.innerHTML = attrHtml;
+                modalAttr.style.display = 'block';
+            } else {
+                modalAttr.style.display = 'none';
+            }
+            
+            modal.style.display = 'flex';
+        }
+    });
     
-	document.addEventListener('click', (e) => {
-		const expandLink = e.target.closest('.expand-desc');
-		if (expandLink) {
-			e.preventDefault();
-			const container = expandLink.closest('.desc-container');
-			if (container) {
-				const fullText = container.getAttribute('data-full');
-				if (fullText) {
-					container.innerHTML = `📖 ${fullText}`;
-				}
-			}
-		}
-	});
-	
+    // Обработчик ссылки "Подробнее" (оставляем как есть)
+    document.addEventListener('click', (e) => {
+        const expandLink = e.target.closest('.expand-desc');
+        if (expandLink) {
+            e.preventDefault();
+            const container = expandLink.closest('.desc-container');
+            if (container) {
+                const fullText = container.getAttribute('data-full');
+                if (fullText) {
+                    container.innerHTML = `📖 ${fullText}`;
+                }
+            }
+        }
+    });
+    
     closeBtn.addEventListener('click', () => {
         modal.style.display = 'none';
         modalImg.src = '';
+        modalAttr.innerHTML = '';
     });
     
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.style.display = 'none';
             modalImg.src = '';
+            modalAttr.innerHTML = '';
         }
     });
-	
-	
 }
 
 
@@ -423,7 +476,7 @@ async function init() {
     initMap();
     bindFilterButtons();
     initLightbox();
-    await loadSvgIcons();      // загружаем иконки перед отображением
+    await Promise.all([loadSvgIcons(), loadPhotoAttribution()]); // загружаем параллельно
     if (typeof window.loadDataCustom === 'function') {
         window.loadDataCustom();
     } else {
