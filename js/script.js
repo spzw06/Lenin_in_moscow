@@ -397,6 +397,8 @@ function initLightbox() {
     modal.innerHTML = `
         <div class="lightbox-content">
             <span class="lightbox-close">&times;</span>
+            <button class="lightbox-prev">&#10094;</button>
+            <button class="lightbox-next">&#10095;</button>
             <img class="lightbox-img" src="" alt="Полноразмерное изображение">
             <div class="lightbox-attribution"></div>
         </div>
@@ -406,42 +408,109 @@ function initLightbox() {
     const modalImg = modal.querySelector('.lightbox-img');
     const modalAttr = modal.querySelector('.lightbox-attribution');
     const closeBtn = modal.querySelector('.lightbox-close');
+    const prevBtn = modal.querySelector('.lightbox-prev');
+    const nextBtn = modal.querySelector('.lightbox-next');
     
-    // Обработчик клика на миниатюрах (восстанавливаем, но с добавлением атрибуции)
+    let currentImages = [];   // массив путей к фото текущего памятника
+    let currentIndex = 0;
+    
+    // Функция обновления изображения и атрибуции
+    function updateLightbox(index) {
+        if (currentImages.length === 0) return;
+        if (index < 0) index = currentImages.length - 1;
+        if (index >= currentImages.length) index = 0;
+        currentIndex = index;
+        const fullPath = currentImages[currentIndex];
+        modalImg.src = fullPath;
+        
+        // Извлекаем имя файла
+        const parts = fullPath.split('/');
+        const fileName = parts[parts.length - 1];
+        const attr = photoAttribution[fileName];
+        
+        if (attr && (attr.author || attr.source)) {
+            let attrHtml = '<div class="attribution-text">';
+            if (attr.author) attrHtml += `<span>Автор: ${escapeHtml(attr.author)}</span>`;
+            if (attr.source) {
+                if (attr.source.startsWith('http')) {
+                    attrHtml += `<span>Источник: <a href="${escapeHtml(attr.source)}" target="_blank" rel="noopener noreferrer">${escapeHtml(attr.source)}</a></span>`;
+                } else {
+                    attrHtml += `<span>Источник: ${escapeHtml(attr.source)}</span>`;
+                }
+            }
+            attrHtml += `</div>`;
+            modalAttr.innerHTML = attrHtml;
+            modalAttr.style.display = 'block';
+        } else {
+            modalAttr.style.display = 'none';
+        }
+    }
+    
+    // Обработчик клика на миниатюре
     document.addEventListener('click', (e) => {
         const thumb = e.target.closest('.gallery-thumb');
         if (thumb && thumb.dataset.full) {
             e.preventDefault();
-            const fullPath = thumb.dataset.full;
-            modalImg.src = fullPath;
-            
-            // Извлекаем имя файла из пути (пример: data/images/фото.webp)
-            const parts = fullPath.split('/');
-            const fileName = parts[parts.length - 1];
-            const attr = photoAttribution[fileName];
-            
-            if (attr && (attr.author || attr.source)) {
-                let attrHtml = '<div class="attribution-text">';
-                if (attr.author) attrHtml += `<span>Автор: ${escapeHtml(attr.author)}</span>`;
-                if (attr.source) {
-                    if (attr.source.startsWith('http')) {
-                        attrHtml += `<span>Источник: <a href="${escapeHtml(attr.source)}" target="_blank" rel="noopener noreferrer">${escapeHtml(attr.source)}</a></span>`;
-                    } else {
-                        attrHtml += `<span>Источник: ${escapeHtml(attr.source)}</span>`;
-                    }
-                }
-                attrHtml += `</div>`;
-                modalAttr.innerHTML = attrHtml;
-                modalAttr.style.display = 'block';
-            } else {
-                modalAttr.style.display = 'none';
+            // Находим все миниатюры в текущем попапе
+            const popupContainer = thumb.closest('.popup-container');
+            if (popupContainer) {
+                const thumbs = popupContainer.querySelectorAll('.gallery-thumb');
+                currentImages = Array.from(thumbs).map(t => t.dataset.full);
+                const clickedPath = thumb.dataset.full;
+                currentIndex = currentImages.indexOf(clickedPath);
+                if (currentIndex === -1) currentIndex = 0;
+                updateLightbox(currentIndex);
+                modal.style.display = 'flex';
             }
-            
-            modal.style.display = 'flex';
         }
     });
     
-    // Обработчик ссылки "Подробнее" (оставляем как есть)
+    // Кнопка "Предыдущее"
+    prevBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentImages.length) updateLightbox(currentIndex - 1);
+    });
+    
+    // Кнопка "Следующее"
+    nextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentImages.length) updateLightbox(currentIndex + 1);
+    });
+    
+    // Закрытие по крестику
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        modalImg.src = '';
+        modalAttr.innerHTML = '';
+        currentImages = [];
+    });
+    
+    // Закрытие по фону
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            modalImg.src = '';
+            modalAttr.innerHTML = '';
+            currentImages = [];
+        }
+    });
+    
+    // Управление с клавиатуры
+    document.addEventListener('keydown', (e) => {
+        if (modal.style.display === 'flex') {
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                prevBtn.click();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                nextBtn.click();
+            } else if (e.key === 'Escape') {
+                closeBtn.click();
+            }
+        }
+    });
+    
+    // Обработчик для кнопки "Подробнее" (оставляем как есть)
     document.addEventListener('click', (e) => {
         const expandLink = e.target.closest('.expand-desc');
         if (expandLink) {
@@ -455,22 +524,7 @@ function initLightbox() {
             }
         }
     });
-    
-    closeBtn.addEventListener('click', () => {
-        modal.style.display = 'none';
-        modalImg.src = '';
-        modalAttr.innerHTML = '';
-    });
-    
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.style.display = 'none';
-            modalImg.src = '';
-            modalAttr.innerHTML = '';
-        }
-    });
 }
-
 
 async function init() {
     initMap();

@@ -230,3 +230,35 @@ body {
 .attribution-text a:hover {
     text-decoration: underline;
 }
+
+/* Кнопки переключения фото в модальном окне */
+.lightbox-prev, .lightbox-next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border: none;
+    font-size: 36px;
+    cursor: pointer;
+    padding: 16px 12px;
+    border-radius: 4px;
+    user-select: none;
+    z-index: 10001;
+    transition: background 0.2s;
+}
+.lightbox-prev:hover, .lightbox-next:hover {
+    background: rgba(0,0,0,0.8);
+}
+.lightbox-prev {
+    left: 20px;
+}
+.lightbox-next {
+    right: 20px;
+}
+@media (max-width: 600px) {
+    .lightbox-prev, .lightbox-next {
+        font-size: 24px;
+        padding: 8px 10px;
+    }
+}
