@@ -411,10 +411,9 @@ function initLightbox() {
     const prevBtn = modal.querySelector('.lightbox-prev');
     const nextBtn = modal.querySelector('.lightbox-next');
     
-    let currentImages = [];   // массив путей к фото текущего памятника
+    let currentImages = [];
     let currentIndex = 0;
     
-    // Функция обновления изображения и атрибуции
     function updateLightbox(index) {
         if (currentImages.length === 0) return;
         if (index < 0) index = currentImages.length - 1;
@@ -423,7 +422,6 @@ function initLightbox() {
         const fullPath = currentImages[currentIndex];
         modalImg.src = fullPath;
         
-        // Извлекаем имя файла
         const parts = fullPath.split('/');
         const fileName = parts[parts.length - 1];
         const attr = photoAttribution[fileName];
@@ -446,18 +444,16 @@ function initLightbox() {
         }
     }
     
-    // Обработчик клика на миниатюре
+    // Клик по миниатюре
     document.addEventListener('click', (e) => {
         const thumb = e.target.closest('.gallery-thumb');
         if (thumb && thumb.dataset.full) {
             e.preventDefault();
-            // Находим все миниатюры в текущем попапе
             const popupContainer = thumb.closest('.popup-container');
             if (popupContainer) {
                 const thumbs = popupContainer.querySelectorAll('.gallery-thumb');
                 currentImages = Array.from(thumbs).map(t => t.dataset.full);
-                const clickedPath = thumb.dataset.full;
-                currentIndex = currentImages.indexOf(clickedPath);
+                currentIndex = currentImages.indexOf(thumb.dataset.full);
                 if (currentIndex === -1) currentIndex = 0;
                 updateLightbox(currentIndex);
                 modal.style.display = 'flex';
@@ -465,19 +461,18 @@ function initLightbox() {
         }
     });
     
-    // Кнопка "Предыдущее"
+    // Кнопки
     prevBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (currentImages.length) updateLightbox(currentIndex - 1);
     });
     
-    // Кнопка "Следующее"
     nextBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (currentImages.length) updateLightbox(currentIndex + 1);
     });
     
-    // Закрытие по крестику
+    // Закрытие
     closeBtn.addEventListener('click', () => {
         modal.style.display = 'none';
         modalImg.src = '';
@@ -485,7 +480,6 @@ function initLightbox() {
         currentImages = [];
     });
     
-    // Закрытие по фону
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.style.display = 'none';
@@ -495,22 +489,26 @@ function initLightbox() {
         }
     });
     
-    // Управление с клавиатуры
+    // Клавиатура (один обработчик с capture, чтобы перехватить раньше Leaflet)
     document.addEventListener('keydown', (e) => {
         if (modal.style.display === 'flex') {
             if (e.key === 'ArrowLeft') {
                 e.preventDefault();
+                e.stopPropagation();
                 prevBtn.click();
             } else if (e.key === 'ArrowRight') {
                 e.preventDefault();
+                e.stopPropagation();
                 nextBtn.click();
             } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
                 closeBtn.click();
             }
         }
-    });
+    }, true);
     
-    // Обработчик для кнопки "Подробнее" (оставляем как есть)
+    // Раскрытие текста (кнопка "Подробнее")
     document.addEventListener('click', (e) => {
         const expandLink = e.target.closest('.expand-desc');
         if (expandLink) {

@@ -231,9 +231,9 @@ body {
     text-decoration: underline;
 }
 
-/* Кнопки переключения фото в модальном окне */
+/* Кнопки переключения фото в модальном окне – фиксированные */
 .lightbox-prev, .lightbox-next {
-    position: absolute;
+    position: fixed;
     top: 50%;
     transform: translateY(-50%);
     background: rgba(0,0,0,0.5);
