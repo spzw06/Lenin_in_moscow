@@ -186,22 +186,40 @@ function parseCSV(csvText) {
 function processDataFromCSV(data) {
     let validPoints = 0;
     let missingLat = 0, missingLon = 0, invalidCoord = 0;
+    let skipped = []; // массив для диагностики
     allMonuments = [];
 
     for (let idx = 0; idx < data.length; idx++) {
         const row = data[idx];
         let latValue = row['lat'] ?? row['latitude'] ?? row['широта'] ?? null;
         let lonValue = row['lon'] ?? row['lng'] ?? row['longitude'] ?? row['долгота'] ?? null;
+        const titleForLog = (row['title'] || row['name'] || row['название'] || 'Памятник Ленину').trim();
 
-        if (latValue === undefined || latValue === '') { missingLat++; continue; }
-        if (lonValue === undefined || lonValue === '') { missingLon++; continue; }
+        if (latValue === undefined || latValue === '') {
+            missingLat++;
+            skipped.push({ id: idx, title: titleForLog, reason: 'нет широты', lat: latValue, lon: lonValue });
+            continue;
+        }
+        if (lonValue === undefined || lonValue === '') {
+            missingLon++;
+            skipped.push({ id: idx, title: titleForLog, reason: 'нет долготы', lat: latValue, lon: lonValue });
+            continue;
+        }
 
         const lat = parseNumber(latValue);
         const lon = parseNumber(lonValue);
-        if (isNaN(lat) || isNaN(lon)) { invalidCoord++; continue; }
+        if (isNaN(lat) || isNaN(lon)) {
+            invalidCoord++;
+            skipped.push({ id: idx, title: titleForLog, reason: 'нечисловые координаты', lat: latValue, lon: lonValue });
+            continue;
+        }
 
+        // Границы Москвы
         if (lat < 55.4 || lat > 56.1 || lon < 37.1 || lon > 37.9) {
-            if (Math.abs(lat - 55.75) > 1.2 || Math.abs(lon - 37.62) > 1.2) continue;
+            if (Math.abs(lat - 55.75) > 1.2 || Math.abs(lon - 37.62) > 1.2) {
+                skipped.push({ id: idx, title: titleForLog, reason: 'выход за границы Москвы', lat, lon });
+                continue;
+            }
         }
 
         let title = (row['title'] || row['name'] || row['название'] || 'Памятник Ленину').trim();
@@ -210,7 +228,6 @@ function processDataFromCSV(data) {
             title = `Памятник Ленину (${address.substring(0, 35)})`;
         }
 
-        // Статус
         let rawCondition = row['condition'] || row['состояние'] || row['status'] || '';
         let cleaned = rawCondition.toString().normalize('NFKC')
             .replace(/[\uFEFF\u200B\u00A0]/g, ' ')
@@ -224,11 +241,9 @@ function processDataFromCSV(data) {
         else if (cleaned.includes('утра')) condition = 'утрачен';
         else if (cleaned.includes('существу')) condition = 'существует';
 
-        // Тип памятника (для иконки)
         let monumentType = (row['type'] || row['тип'] || 'не указан').trim().toLowerCase();
         if (monumentType !== 'фигура' && monumentType !== 'бюст') monumentType = 'не указан';
 
-        // Парсинг photo_urls (как в вашем коде)
         let photoUrls = [];
         const rawPhoto = row['photo_urls'] || '';
         if (rawPhoto.trim() !== '') {
@@ -241,20 +256,23 @@ function processDataFromCSV(data) {
         const description = (row['description'] || row['описание'] || '').trim();
         const material = (row['material'] || row['материал'] || '').trim();
         const heritage = (row['heritage_status'] || row['охранный_статус'] || '').trim();
-        const typeInfo = (row['type'] || row['тип'] || '').trim(); // сохраняем оригинал для попапа
+        const typeInfo = (row['type'] || row['тип'] || '').trim();
 
         allMonuments.push({
             id: idx, lat, lon, title, address, condition,
             sculptor, year, description, material, heritage, typeInfo,
-            monumentType: monumentType, // используем для иконки
-            photoUrls: photoUrls
+            monumentType, photoUrls
         });
         validPoints++;
     }
 
+    console.log('✅ Загружено точек:', validPoints);
+    console.log('⚠️ Пропущено всего:', data.length - validPoints);
+    console.log('📋 Детали пропущенных:', skipped);
+
     document.getElementById('totalCount').innerText = validPoints;
     if (validPoints === 0) {
-        alert('⚠️ Не найдено точек с координатами. Проверьте наличие столбцов lat/lon в CSV.');
+        alert('⚠️ Не найдено точек с координатами. Проверьте консоль для деталей.');
         return;
     }
     displayMonuments(allMonuments);
