@@ -7,6 +7,9 @@ let allMonuments = [];
 let currentFilter = 'all';
 let markerMap = new Map();
 let photoAttribution = {}; // словарь: имя файла -> { author, source, title }
+let sidebarVisible = false;
+let searchQuery = '';
+let currentFilteredList = [];
 
 // Хранилище SVG-иконок
 let svgIcons = {
@@ -39,40 +42,34 @@ async function loadSvgIcons() {
 
 // Получение цвета по статусу
 function getColorByCondition(condition) {
-    if (condition === 'утрачен') return '#555555';   // тёмно-серый (лучше виден на светлом)
-    if (condition === 'существует') return '#cc0000'; // насыщенный тёмно-красный
-    return '#e68a00';                                 // тёмно-оранжевый (вместо жёлтого)
+    if (condition === 'утрачен') return '#555555';
+    if (condition === 'существует') return '#cc0000';
+    return '#e68a00';
 }
 
-// Создание маркера с иконкой на основе типа и статуса
+// Создание маркера
 function getMarkerIcon(type, condition) {
     let svgContent = null;
     if (type === 'фигура') svgContent = svgIcons.фигура;
     else if (type === 'бюст') svgContent = svgIcons.бюст;
     else svgContent = svgIcons['не указан'];
-    
     const color = getColorByCondition(condition);
-    
     if (svgContent) {
-		let coloredSvg = svgContent;
-		coloredSvg = coloredSvg.replace(/fill="[^"]*"/g, `fill="${color}"`);
-		coloredSvg = coloredSvg.replace(/stroke="[^"]*"/g, `stroke="${color}"`);
-		coloredSvg = coloredSvg.replace(/fill=[^ >]+/g, `fill="${color}"`);
-		coloredSvg = coloredSvg.replace(/stroke=[^ >]+/g, `stroke="${color}"`);
-		
-		const size = 50; // желаемый размер в пикселях (всота = ширина)
-		// Принудительно добавляем width и height в тег <svg>
-		coloredSvg = coloredSvg.replace(/<svg /i, `<svg width="${size}" height="${size}" `);
-		
-		return L.divIcon({
-			html: coloredSvg,
-			iconSize: [size, size],
-			iconAnchor: [size/2, size],
-			popupAnchor: [0, -size],
-			className: 'custom-svg-marker'
-		});
-	} else {
-        // fallback – цветной кружок
+        let coloredSvg = svgContent;
+        coloredSvg = coloredSvg.replace(/fill="[^"]*"/g, `fill="${color}"`);
+        coloredSvg = coloredSvg.replace(/stroke="[^"]*"/g, `stroke="${color}"`);
+        coloredSvg = coloredSvg.replace(/fill=[^ >]+/g, `fill="${color}"`);
+        coloredSvg = coloredSvg.replace(/stroke=[^ >]+/g, `stroke="${color}"`);
+        const size = 50;
+        coloredSvg = coloredSvg.replace(/<svg /i, `<svg width="${size}" height="${size}" `);
+        return L.divIcon({
+            html: coloredSvg,
+            iconSize: [size, size],
+            iconAnchor: [size/2, size],
+            popupAnchor: [0, -size],
+            className: 'custom-svg-marker'
+        });
+    } else {
         const fallbackSize = 18;
         return L.divIcon({
             html: `<div style="background-color: ${color}; width: ${fallbackSize}px; height: ${fallbackSize}px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
@@ -91,11 +88,11 @@ function initMap() {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
         subdomains: 'abcd', maxZoom: 18, minZoom: 9
     }).addTo(map);
-	markersCluster = L.markerClusterGroup({
-    chunkedLoading: true,
-    maxClusterRadius: 35,
-    disableClusteringAtZoom: 15   // при зуме >=15 кластеры не создаются
-	});
+    markersCluster = L.markerClusterGroup({
+        chunkedLoading: true,
+        maxClusterRadius: 35,
+        disableClusteringAtZoom: 15
+    });
     map.addLayer(markersCluster);
 }
 
@@ -111,10 +108,9 @@ function parseNumber(s) {
     return parseFloat(str);
 }
 
-// Парсер CSV с поддержкой кавычек и переводов строк
+// Парсер CSV
 function parseCSV(csvText) {
     if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
-    
     let delimiter = ';';
     const firstLineEnd = csvText.indexOf('\n');
     if (firstLineEnd !== -1) {
@@ -122,14 +118,12 @@ function parseCSV(csvText) {
         if (firstLine.includes(',')) delimiter = ',';
         else if (firstLine.includes(';')) delimiter = ';';
     }
-    
     const rows = [];
     let currentRow = [];
     let currentField = '';
     let inQuotes = false;
     let i = 0;
     const len = csvText.length;
-    
     while (i < len) {
         const ch = csvText[i];
         if (ch === '"') {
@@ -156,15 +150,12 @@ function parseCSV(csvText) {
         currentRow.push(currentField.trim());
         rows.push(currentRow);
     }
-    
     if (rows.length === 0) return [];
-    
     const headers = rows[0].map(h => {
         let clean = h;
         if (clean.startsWith('"') && clean.endsWith('"')) clean = clean.slice(1, -1);
         return clean.toLowerCase();
     });
-    
     const data = [];
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
@@ -184,28 +175,26 @@ function parseCSV(csvText) {
 
 // Обработка данных из CSV
 function processDataFromCSV(data) {
+    console.log('processDataFromCSV вызвана, получено строк:', data.length);
     let validPoints = 0;
     let missingLat = 0, missingLon = 0, invalidCoord = 0;
-    let skipped = []; // массив для диагностики
+    let skipped = [];
     allMonuments = [];
-
     for (let idx = 0; idx < data.length; idx++) {
         const row = data[idx];
         let latValue = row['lat'] ?? row['latitude'] ?? row['широта'] ?? null;
         let lonValue = row['lon'] ?? row['lng'] ?? row['longitude'] ?? row['долгота'] ?? null;
         const titleForLog = (row['title'] || row['name'] || row['название'] || 'Памятник Ленину').trim();
-
         if (latValue === undefined || latValue === '') {
             missingLat++;
-            skipped.push({ id: idx, title: titleForLog, reason: 'нет широты', lat: latValue, lon: lonValue });
+            skipped.push({ id: idx, title: titleForLog, reason: 'нет широты' });
             continue;
         }
         if (lonValue === undefined || lonValue === '') {
             missingLon++;
-            skipped.push({ id: idx, title: titleForLog, reason: 'нет долготы', lat: latValue, lon: lonValue });
+            skipped.push({ id: idx, title: titleForLog, reason: 'нет долготы' });
             continue;
         }
-
         const lat = parseNumber(latValue);
         const lon = parseNumber(lonValue);
         if (isNaN(lat) || isNaN(lon)) {
@@ -213,51 +202,42 @@ function processDataFromCSV(data) {
             skipped.push({ id: idx, title: titleForLog, reason: 'нечисловые координаты', lat: latValue, lon: lonValue });
             continue;
         }
-
-        // Границы Москвы
         if (lat < 55.4 || lat > 56.1 || lon < 37.1 || lon > 37.9) {
             if (Math.abs(lat - 55.75) > 1.2 || Math.abs(lon - 37.62) > 1.2) {
                 skipped.push({ id: idx, title: titleForLog, reason: 'выход за границы Москвы', lat, lon });
                 continue;
             }
         }
-
         let title = (row['title'] || row['name'] || row['название'] || 'Памятник Ленину').trim();
         const address = (row['address'] || row['адрес'] || '').trim();
         if (title === 'Памятник Ленину' && address) {
             title = `Памятник Ленину (${address.substring(0, 35)})`;
         }
-
         let rawCondition = row['condition'] || row['состояние'] || row['status'] || '';
         let cleaned = rawCondition.toString().normalize('NFKC')
             .replace(/[\uFEFF\u200B\u00A0]/g, ' ')
             .replace(/\s+/g, ' ')
             .trim()
             .toLowerCase();
-        
         let condition = 'не указано';
         if (cleaned === 'существует' || cleaned === 'exists' || cleaned === 'сохранился') condition = 'существует';
         else if (cleaned === 'утрачен' || cleaned === 'lost' || cleaned === 'демонтирован') condition = 'утрачен';
         else if (cleaned.includes('утра')) condition = 'утрачен';
         else if (cleaned.includes('существу')) condition = 'существует';
-
         let monumentType = (row['type'] || row['тип'] || 'не указан').trim().toLowerCase();
         if (monumentType !== 'фигура' && monumentType !== 'бюст') monumentType = 'не указан';
-
         let photoUrls = [];
         const rawPhoto = row['photo_urls'] || '';
         if (rawPhoto.trim() !== '') {
             photoUrls = rawPhoto.split(',').map(f => f.trim()).filter(f => f !== '');
             photoUrls = photoUrls.map(f => `data/images/${f}`);
         }
-
         const sculptor = (row['sculptor'] || row['скульптор'] || '').trim();
         const year = (row['year'] || row['год'] || '').trim();
         const description = (row['description'] || row['описание'] || '').trim();
         const material = (row['material'] || row['материал'] || '').trim();
         const heritage = (row['heritage_status'] || row['охранный_статус'] || '').trim();
         const typeInfo = (row['type'] || row['тип'] || '').trim();
-
         allMonuments.push({
             id: idx, lat, lon, title, address, condition,
             sculptor, year, description, material, heritage, typeInfo,
@@ -265,11 +245,9 @@ function processDataFromCSV(data) {
         });
         validPoints++;
     }
-
     console.log('✅ Загружено точек:', validPoints);
     console.log('⚠️ Пропущено всего:', data.length - validPoints);
     console.log('📋 Детали пропущенных:', skipped);
-
     document.getElementById('totalCount').innerText = validPoints;
     if (validPoints === 0) {
         alert('⚠️ Не найдено точек с координатами. Проверьте консоль для деталей.');
@@ -284,7 +262,7 @@ async function loadPhotoAttribution() {
         const response = await fetch(attributionCsvUrl);
         if (!response.ok) return;
         const csvText = await response.text();
-        const data = parseCSV(csvText); // используем существующий парсер CSV
+        const data = parseCSV(csvText);
         for (const row of data) {
             const fileName = row['name']?.trim();
             if (fileName) {
@@ -301,7 +279,7 @@ async function loadPhotoAttribution() {
     }
 }
 
-// Отображение маркеров с новыми иконками
+// Отображение маркеров
 function displayMonuments(monuments) {
     markersCluster.clearLayers();
     markerMap.clear();
@@ -314,9 +292,10 @@ function displayMonuments(monuments) {
         markerMap.set(mon.id, marker);
     }
     updateFilterCounter();
+    updateSidebarIfVisible();
 }
 
-// Генерация HTML для попапа (без изменений, кроме удаления старой иконки)
+// Генерация попапа
 function generatePopupHtml(mon) {
     let conditionIcon = mon.condition === 'существует' ? '🔴' : (mon.condition === 'утрачен' ? '🔘' : '🔴');
     let html = `<div class="popup-container">`;
@@ -329,18 +308,16 @@ function generatePopupHtml(mon) {
     if (mon.heritage) html += `🏛 Охрана: ${escapeHtml(mon.heritage)}<br>`;
     if (mon.typeInfo) html += `🏷 Тип: ${escapeHtml(mon.typeInfo)}<br>`;
     if (mon.description) {
-		const fullDesc = escapeHtml(mon.description);
-		if (fullDesc.length > 120) {
-			const shortDesc = fullDesc.substring(0, 120);
-			// Сохраняем полный текст в data-атрибуте (без экранирования кавычек для HTML)
-			const safeFullDesc = fullDesc.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-			html += `<div class="desc-container" data-full="${safeFullDesc}">📖 ${shortDesc}... <a href="#" class="expand-desc">Подробнее</a></div>`;
-		} else {
-			html += `<div>📖 ${fullDesc}</div>`;
-		}
-	}
-	html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
-    
+        const fullDesc = escapeHtml(mon.description);
+        if (fullDesc.length > 120) {
+            const shortDesc = fullDesc.substring(0, 120);
+            const safeFullDesc = fullDesc.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            html += `<div class="desc-container" data-full="${safeFullDesc}">📖 ${shortDesc}... <a href="#" class="expand-desc">Подробнее</a></div>`;
+        } else {
+            html += `<div>📖 ${fullDesc}</div>`;
+        }
+    }
+    html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
     if (mon.photoUrls && mon.photoUrls.length > 0) {
         html += `<div class="photo-gallery">`;
         for (let i = 0; i < mon.photoUrls.length; i++) {
@@ -353,13 +330,15 @@ function generatePopupHtml(mon) {
     return html;
 }
 
-// Загрузка данных (без изменений)
+// Загрузка данных
 async function loadData() {
+    console.log('loadData: начало загрузки CSV');
     const overlay = document.getElementById('loading-overlay');
     try {
         const response = await fetch(CSV_URL);
         if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
         const csvText = await response.text();
+        console.log('CSV получен, длина:', csvText.length);
         const data = parseCSV(csvText);
         if (!data.length) throw new Error('Нет данных в CSV');
         processDataFromCSV(data);
@@ -370,6 +349,7 @@ async function loadData() {
         setTimeout(() => overlay.style.display = 'none', 5000);
     }
 }
+
 function applyFilter(filterValue) {
     currentFilter = filterValue;
     let filtered = filterValue === 'all' ? allMonuments : allMonuments.filter(m => m.condition === filterValue);
@@ -378,14 +358,7 @@ function applyFilter(filterValue) {
         if (btn.getAttribute('data-filter') === filterValue) btn.classList.add('active');
         else btn.classList.remove('active');
     });
-																		
-								 
-									   
-				   
-						   
-																								
-															   
-	 
+    updateSidebarIfVisible();
 }
 
 function updateFilterCounter() {
@@ -407,7 +380,7 @@ function bindFilterButtons() {
     document.querySelector('.filter-btn[data-filter="reset"]')?.addEventListener('click', () => applyFilter('all'));
 }
 
-// Модальное окно для полноэкранного просмотра изображений
+// Модальное окно
 function initLightbox() {
     const modal = document.createElement('div');
     modal.id = 'lightbox-modal';
@@ -422,16 +395,13 @@ function initLightbox() {
         </div>
     `;
     document.body.appendChild(modal);
-    
     const modalImg = modal.querySelector('.lightbox-img');
     const modalAttr = modal.querySelector('.lightbox-attribution');
     const closeBtn = modal.querySelector('.lightbox-close');
     const prevBtn = modal.querySelector('.lightbox-prev');
     const nextBtn = modal.querySelector('.lightbox-next');
-    
     let currentImages = [];
     let currentIndex = 0;
-    
     function updateLightbox(index) {
         if (currentImages.length === 0) return;
         if (index < 0) index = currentImages.length - 1;
@@ -439,11 +409,9 @@ function initLightbox() {
         currentIndex = index;
         const fullPath = currentImages[currentIndex];
         modalImg.src = fullPath;
-        
         const parts = fullPath.split('/');
         const fileName = parts[parts.length - 1];
         const attr = photoAttribution[fileName];
-        
         if (attr && (attr.author || attr.source)) {
             let attrHtml = '<div class="attribution-text">';
             if (attr.author) attrHtml += `<span>Автор: ${escapeHtml(attr.author)}</span>`;
@@ -461,8 +429,6 @@ function initLightbox() {
             modalAttr.style.display = 'none';
         }
     }
-    
-    // Клик по миниатюре
     document.addEventListener('click', (e) => {
         const thumb = e.target.closest('.gallery-thumb');
         if (thumb && thumb.dataset.full) {
@@ -478,26 +444,20 @@ function initLightbox() {
             }
         }
     });
-    
-    // Кнопки
     prevBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (currentImages.length) updateLightbox(currentIndex - 1);
     });
-    
     nextBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (currentImages.length) updateLightbox(currentIndex + 1);
     });
-    
-    // Закрытие
     closeBtn.addEventListener('click', () => {
         modal.style.display = 'none';
         modalImg.src = '';
         modalAttr.innerHTML = '';
         currentImages = [];
     });
-    
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.style.display = 'none';
@@ -506,8 +466,6 @@ function initLightbox() {
             currentImages = [];
         }
     });
-    
-    // Клавиатура (один обработчик с capture, чтобы перехватить раньше Leaflet)
     document.addEventListener('keydown', (e) => {
         if (modal.style.display === 'flex') {
             if (e.key === 'ArrowLeft') {
@@ -525,8 +483,6 @@ function initLightbox() {
             }
         }
     }, true);
-    
-    // Раскрытие текста (кнопка "Подробнее")
     document.addEventListener('click', (e) => {
         const expandLink = e.target.closest('.expand-desc');
         if (expandLink) {
@@ -542,20 +498,222 @@ function initLightbox() {
     });
 }
 
+// === Функции для боковой панели ===
+function renderList() {
+    const container = document.getElementById('list-container');
+
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    let filtered = allMonuments;
+
+    if (currentFilter !== 'all') {
+        filtered = filtered.filter(
+            m => m.condition === currentFilter
+        );
+    }
+
+    if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+
+        filtered = filtered.filter(m =>
+            [
+                m.title,
+                m.address,
+                m.sculptor,
+                m.year,
+                m.description
+            ]
+            .join(' ')
+            .toLowerCase()
+            .includes(q)
+        );
+    }
+
+    if (!filtered.length) {
+        container.innerHTML =
+            '<div class="loading-placeholder">Нет данных</div>';
+        return;
+    }
+
+    const fragment = document.createDocumentFragment();
+	
+    filtered.forEach(mon => {
+		try {
+			console.log('Создаю карточку:', mon.title);
+			const card = document.createElement('div');
+			card.className = 'list-card';
+
+			card.dataset.id = mon.id;
+			card.dataset.lat = mon.lat;
+			card.dataset.lon = mon.lon;
+
+			const photo = document.createElement('div');
+			photo.className = 'list-card-photo';
+
+			if (mon.photoUrls?.length) {
+
+				const img = document.createElement('img');
+
+				img.src = mon.photoUrls[0];
+				img.loading = 'lazy';
+
+				img.onerror = () => {
+					photo.innerHTML =
+						'<div class="placeholder-photo">📷</div>';
+				};
+
+				photo.appendChild(img);
+
+			} else {
+
+				photo.innerHTML =
+					'<div class="placeholder-photo">📷</div>';
+			}
+
+			const info = document.createElement('div');
+			info.className = 'list-card-info';
+
+			const photoCount = mon.photoUrls?.length || 0;
+
+			info.innerHTML = `
+				<div class="list-card-title">
+					${escapeHtml(mon.title)}
+				</div>
+
+				<div class="list-card-address">
+					📍 ${escapeHtml(mon.address || 'Адрес не указан')}
+				</div>
+
+				<div class="list-card-meta">
+					${mon.year ? `🗓 ${escapeHtml(mon.year)}` : ''}
+					${photoCount ? `📷 ${photoCount}` : ''}
+				</div>
+
+				<div class="list-card-status ${getStatusClass(mon.condition)}">
+					${escapeHtml(mon.condition)}
+				</div>
+			`;
+
+			card.appendChild(photo);
+			card.appendChild(info);
+
+			card.addEventListener('click', () => {
+
+				document
+					.querySelectorAll('.list-card')
+					.forEach(c => c.classList.remove('active'));
+
+				card.classList.add('active');
+
+				const marker = markerMap.get(mon.id);
+
+				if (marker) {
+					markersCluster.zoomToShowLayer(
+						marker,
+						() => marker.openPopup()
+					);
+				}
+
+				
+				map.setView(
+						[mon.lat, mon.lon],
+						16
+					);
+				
+			});
+
+				
+
+			fragment.appendChild(card);
+		} catch(err) {
+
+			console.error(
+				'Ошибка карточки',
+				mon,
+				err
+			);
+		}
+		
+    });
+ 
+    container.appendChild(fragment);
+	console.log(
+		'Карточек в контейнере:',
+		container.children.length
+	);
+
+	console.log(
+		container.firstElementChild?.outerHTML
+	);
+}
+
+function toggleSidebar(show) {
+    const sidebar = document.getElementById('list-sidebar');
+    if (!sidebar) return;
+    if (show === undefined) {
+        sidebar.classList.toggle('hidden');
+        sidebarVisible = !sidebar.classList.contains('hidden');
+    } else {
+        if (show) sidebar.classList.remove('hidden');
+        else sidebar.classList.add('hidden');
+        sidebarVisible = show;
+    }
+    if (sidebarVisible) {
+        renderList();
+    }
+}
+
+function updateSidebarIfVisible() {
+    if (sidebarVisible) {
+        renderList();
+    }
+}
+
+function getStatusClass(condition) {
+    if (condition === 'существует') return 'exists';
+    if (condition === 'утрачен') return 'lost';
+    return 'unknown';
+}
+
+// === Инициализация (в конце) ===
 async function init() {
+    console.log('init: начало инициализации');
     initMap();
     bindFilterButtons();
     initLightbox();
-    await Promise.all([loadSvgIcons(), loadPhotoAttribution()]); // загружаем параллельно
-    if (typeof window.loadDataCustom === 'function') {
-        window.loadDataCustom();
-    } else {
-        loadData();
-    }
+    await Promise.all([loadSvgIcons(), loadPhotoAttribution()]);
+    console.log('init: иконки и атрибуция загружены');
+    // if (typeof window.loadDataCustom === 'function') {
+        // window.loadDataCustom();
+    // } else {
+        // await loadData();
+    // }
+	await loadData();
     window.addEventListener('resize', () => map?.invalidateSize());
+
+    // Обработчики для боковой панели
+    const toggleBtn = document.getElementById('toggle-list-btn');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => toggleSidebar(true));
+    }
+    const closeBtn = document.getElementById('close-sidebar-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => toggleSidebar(false));
+    }
+    const searchInput = document.getElementById('list-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            if (sidebarVisible) renderList();
+        });
+    }
+    console.log('init: завершено');
 }
 
 window.parseCSV = parseCSV;
 window.processDataFromCSV = processDataFromCSV;
 
+// Запуск
 init();

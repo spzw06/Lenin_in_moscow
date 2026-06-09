@@ -13,8 +13,8 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <!-- Подключаем свои CSS и JS -->
     <link rel="stylesheet" href="css/style.css">
-	<script src="js/config.js"></script>
-	<script src="js/script.js" defer></script>
+    <script src="js/config.js"></script>
+    <script src="js/script.js" defer></script>
 </head>
 <body>
 <div class="map-header">
@@ -25,10 +25,26 @@
     <button class="filter-btn active" data-filter="all">Все точки</button>
     <button class="filter-btn" data-filter="существует">🔴 Существующие</button>
     <button class="filter-btn" data-filter="утрачен">🔘 Утраченные</button>
-    <button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить фильтр</button>
+   <button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить фильтр</button>
+    <button id="toggle-list-btn" class="filter-btn" style="background: #0f1c24; margin-left: auto;">📋 Отобразить список</button>
 </div>
 <div id="map"></div>
 <div class="footer-note">Источник: GitHub | Всего точек: <span id="totalCount">0</span></div>
 <div id="loading-overlay" class="loading-overlay"><div>📡 Загрузка данных из репозитория...</div><div style="font-size:0.8rem;">Пожалуйста, подождите</div></div>
+
+<!-- Боковая панель со списком -->
+<div id="list-sidebar" class="list-sidebar hidden">
+    <div class="sidebar-header">
+        <h3>Список памятников</h3>
+        <button id="close-sidebar-btn" class="close-sidebar-btn">✕</button>
+    </div>
+    <div class="sidebar-search">
+        <input type="text" id="list-search-input" placeholder="🔍 Поиск по названию или адресу...">
+    </div>
+    <div id="list-container" class="list-container">
+        <!-- сюда динамически генерируются карточки -->
+        <div class="loading-placeholder">Загрузка...</div>
+    </div>
+</div>
 </body>
 </html>
