@@ -531,6 +531,14 @@ function renderList() {
         );
     }
 
+    // 🔽 ОБНОВЛЯЕМ ЗАГОЛОВОК
+    const totalAll = allMonuments.length;
+    const filteredCount = filtered.length;
+    const headerElement = document.querySelector('.sidebar-header h3');
+    if (headerElement) {
+        headerElement.textContent = `Список памятников (${filteredCount}/${totalAll})`;
+    }
+
     if (!filtered.length) {
         container.innerHTML =
             '<div class="loading-placeholder">Нет данных</div>';
@@ -685,12 +693,12 @@ async function init() {
     initLightbox();
     await Promise.all([loadSvgIcons(), loadPhotoAttribution()]);
     console.log('init: иконки и атрибуция загружены');
-    // if (typeof window.loadDataCustom === 'function') {
-        // window.loadDataCustom();
-    // } else {
-        // await loadData();
-    // }
-	await loadData();
+    if (typeof window.loadDataCustom === 'function') {
+        window.loadDataCustom();
+    } else {
+        await loadData();
+    }
+	
     window.addEventListener('resize', () => map?.invalidateSize());
 
     // Обработчики для боковой панели
