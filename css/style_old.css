@@ -12,37 +12,32 @@
     padding: 0;
     box-sizing: border-box;
 }
-html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-}
 body {
-    display: flex;
-    flex-direction: column;
     font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
     background: #1e2f3a;
 }
 .map-header {
-    background: #ffffff;
-    color: #111;
-    border-bottom: 3px solid #c12b2b;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    padding: 12px 20px;
-    text-align: center;
+    background: #000000;
+    color: #ffffff;
+    border-bottom: 3px solid #e32636;
+    text-transform: uppercase;
     font-family: 'Russo One', 'Segoe UI', sans-serif;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
 }
 .map-header h1 {
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     font-weight: 500;
-    margin-bottom: 4px;
 }
 .map-header p {
     font-size: 0.85rem;
-    opacity: 0.7;
-    margin-top: 0;
+    opacity: 0.8;
+    margin-top: 5px;
+}
+
+#map {
+    height: calc(100vh - 160px);
+    width: 100%;
+    background: #c8e0e6;
 }
 .leaflet-popup-content {
     font-size: 13px;
@@ -91,6 +86,10 @@ body {
     .map-header h1 {
         font-size: 1.2rem;
     }
+    .filter-btn {
+        padding: 4px 12px;
+        font-size: 0.75rem;
+    }
 }
 
 /* Стили для галереи изображений в попапе */
@@ -112,9 +111,9 @@ body {
 }
 .gallery-thumb:hover {
     transform: scale(1.05);
-    border-color: #c12b2b;
+    border-color: #2ecc71;
 }
-/* Модальное окно */
+/* Модальное окно для полноразмерного изображения */
 #lightbox-modal {
     position: fixed;
     top: 0;
@@ -139,7 +138,7 @@ body {
 }
 .lightbox-img {
     max-width: 100%;
-    max-height: 70vh;
+    max-height: 70vh;  /* ← главное изменение: изображение занимает не более 70% высоты экрана */
     border-radius: 8px;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
     object-fit: contain;
@@ -158,7 +157,7 @@ body {
 .lightbox-close:hover {
     color: #ccc;
 }
-/* SVG-иконки */
+/* Стили для SVG-иконок */
 .custom-svg-marker {
     background: transparent;
     border: none;
@@ -174,11 +173,12 @@ body {
     text-decoration: none;
     cursor: pointer;
     font-weight: bold;
-    font-style: italic;
+	font-style: italic;
 }
 .desc-container a:hover {
     text-decoration: underline;
 }
+/* Стили для подписи в модальном окне */
 .lightbox-attribution {
     margin-top: 12px;
     padding: 8px 12px;
@@ -208,6 +208,8 @@ body {
 .attribution-text a:hover {
     text-decoration: underline;
 }
+
+/* Кнопки переключения фото в модальном окне – фиксированные */
 .lightbox-prev, .lightbox-next {
     position: fixed;
     top: 50%;
@@ -226,16 +228,19 @@ body {
 .lightbox-prev:hover, .lightbox-next:hover {
     background: rgba(0,0,0,0.8);
 }
-.lightbox-prev { left: 20px; }
-.lightbox-next { right: 20px; }
+.lightbox-prev {
+    left: 20px;
+}
+.lightbox-next {
+    right: 20px;
+}
 @media (max-width: 600px) {
     .lightbox-prev, .lightbox-next {
         font-size: 24px;
         padding: 8px 10px;
     }
 }
-
-/* Боковая панель списка (без изменений, оставляем как было) */
+/* Боковая панель списка */
 .list-sidebar {
     position: fixed;
     top: 0;
@@ -311,16 +316,20 @@ body {
     border-radius: 14px;
     border: 1px solid #ececec;
     cursor: pointer;
-    transition: transform .15s ease, box-shadow .15s ease;
+    transition:
+        transform .15s ease,
+        box-shadow .15s ease;
     flex: 0 0 auto;
 }
 .list-card.active {
-    border-color: #c12b2b;
-    box-shadow: 0 0 0 3px rgba(193,43,43,0.12);
+    border-color: #196dff;
+    box-shadow:
+        0 0 0 3px rgba(25,109,255,.12);
 }
 .list-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.08);
 }
 .list-card-photo {
     width: 110px;
@@ -399,104 +408,52 @@ body {
     align-items: center;
     gap: 4px;
 }
-#map {
-    flex: 1;              /* карта занимает всё оставшееся пространство */
-    width: 100%;
-    background: #c8e0e6;
-}
-.map-header,
-.filter-bar,
-.extra-filters {
-    flex-shrink: 0;      /* чтобы эти блоки не сжимались */
-}
 
-/* ========== НОВЫЕ СТИЛИ ДЛЯ ПАНЕЛЕЙ И КНОПОК (спокойный плакатный стиль) ========== */
 .filter-bar, .extra-filters {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 16px;
-    background: #fafaf8;  /* светлый фон, почти белый */
-    border-bottom: 2px solid #c12b2b;
-    flex-wrap: wrap;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-}
-.filter-bar {
-    justify-content: flex-start;
-}
-.extra-filters {
-    justify-content: flex-start;
-    border-top: none;
+    background: #111111;
+    border-bottom: 2px solid #e32636;
 }
 .filter-btn, .extra-filters select {
-    background: #ffffff;
-    border: 1px solid #c0c0c0;
-    color: #222;
-    padding: 6px 18px;
-    border-radius: 30px;
-    cursor: pointer;
-    font-size: 0.85rem;
+    background: #222222;
+    color: #fff;
+    border-radius: 0px;
     font-weight: 500;
-    transition: all 0.2s ease;
-    height: 36px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    font-family: inherit;
-    text-transform: none;
-    letter-spacing: normal;
-}
-.filter-btn:hover, .extra-filters select:hover {
-    background: #f0f0f0;
-    border-color: #c12b2b;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    border: 1px solid #444;
 }
 .filter-btn.active {
-    background: #c12b2b;
-    border-color: #c12b2b;
+    background: #e32636;
     color: #ffffff;
+    border-color: #e32636;
 }
 .filter-btn.reset-btn {
-    background: #ffffff;
-    border-color: #c0c0c0;
-    color: #555;
+    background: #000000;
+    border-color: #e32636;
+    color: #e32636;
 }
 .filter-btn.reset-btn:hover {
-    background: #c12b2b;
-    border-color: #c12b2b;
-    color: #ffffff;
+    background: #e32636;
+    color: #000000;
 }
 .extra-filters select {
-    appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%23c12b2b'><path d='M7 10l5 5 5-5z'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 34px;
+    background-color: #222;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%23e32636'><path d='M7 10l5 5 5-5z'/></svg>");
 }
+
 #toggle-list-btn {
-    margin-left: auto;
-    background: #ffffff;
-    border-color: #c12b2b;
-    color: #c12b2b;
+    margin-left: auto; /* прижимаем кнопку списка вправо */
 }
-#toggle-list-btn:hover {
-    background: #c12b2b;
-    color: #ffffff;
-}
+
 @media (max-width: 600px) {
-    .filter-btn, .extra-filters select, #toggle-list-btn {
-        padding: 4px 12px;
-        font-size: 0.75rem;
-        height: 30px;
-    }
-    .extra-filters select {
-        padding-right: 28px;
-        background-position: right 8px center;
-    }
     .list-sidebar {
         width: 100%;
     }
     .list-card-photo {
         height: 120px;
+    }
+    .extra-filters select {
+        font-size: 0.7rem;
+        padding: 4px 8px;
     }
 }
