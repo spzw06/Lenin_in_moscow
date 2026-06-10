@@ -10,6 +10,11 @@ let photoAttribution = {}; // словарь: имя файла -> { author, sou
 let sidebarVisible = false;
 let searchQuery = '';
 let currentFilteredList = [];
+let filterType = 'all';
+let filterMaterial = 'all';
+let filterSculptor = 'all';
+let filterPhoto = 'all';
+
 
 // Хранилище SVG-иконок
 let svgIcons = {
@@ -253,7 +258,101 @@ function processDataFromCSV(data) {
         alert('⚠️ Не найдено точек с координатами. Проверьте консоль для деталей.');
         return;
     }
-    displayMonuments(allMonuments);
+    populateFilterOptions();   // заполняем выпадающие списки (добавить эту строку)
+    updateMapAndList();        // обновляем карту и список
+}
+
+function populateFilterOptions() {
+    const materials = new Set();
+    const sculptors = new Set();
+
+    allMonuments.forEach(mon => {
+        if (mon.material && mon.material.trim()) materials.add(mon.material);
+        if (mon.sculptor && mon.sculptor.trim()) {
+            // Разделяем по запятым, точкам с запятой, пробелам
+            const names = mon.sculptor.split(/[,;\s]+/).filter(name => name.trim().length > 0);
+            names.forEach(name => sculptors.add(name));
+        }
+    });
+
+    const materialSelect = document.getElementById('filter-material');
+    if (materialSelect) {
+        materialSelect.innerHTML = '<option value="all">Материал: все</option>';
+        Array.from(materials).sort().forEach(m => {
+            const option = document.createElement('option');
+            option.value = m;
+            option.textContent = m;
+            materialSelect.appendChild(option);
+        });
+    }
+
+    const sculptorSelect = document.getElementById('filter-sculptor');
+    if (sculptorSelect) {
+        sculptorSelect.innerHTML = '<option value="all">Скульптор: все</option>';
+        Array.from(sculptors).sort().forEach(s => {
+            const option = document.createElement('option');
+            option.value = s;
+            option.textContent = s;
+            sculptorSelect.appendChild(option);
+        });
+    }
+}
+
+function getFilteredMonuments() {
+    let result = allMonuments;
+    // фильтр по статусу
+    if (currentFilter !== 'all') {
+        result = result.filter(m => m.condition === currentFilter);
+    }
+    // фильтр по типу
+    if (filterType !== 'all') {
+        result = result.filter(m => m.monumentType === filterType);
+    }
+    // фильтр по материалу
+    if (filterMaterial !== 'all') {
+        result = result.filter(m => m.material === filterMaterial);
+    }
+    // фильтр по скульптору
+	if (filterSculptor !== 'all') {
+		result = result.filter(m => {
+			if (!m.sculptor) return false;
+			const names = m.sculptor.split(/[,;\s]+/).filter(n => n.trim().length > 0);
+			return names.includes(filterSculptor);
+		});
+	}
+    // фильтр по фото
+    if (filterPhoto === 'yes') {
+        result = result.filter(m => m.photoUrls && m.photoUrls.length > 0);
+    } else if (filterPhoto === 'no') {
+        result = result.filter(m => !m.photoUrls || m.photoUrls.length === 0);
+    }
+    // поиск
+    if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        result = result.filter(m => 
+            [m.title, m.address, m.sculptor, m.year, m.description]
+                .join(' ')
+                .toLowerCase()
+                .includes(q)
+        );
+    }
+    return result;
+}
+
+function updateMapAndList() {
+    const filtered = getFilteredMonuments();
+    displayMonuments(filtered);   // обновляем карту
+    if (sidebarVisible) {
+        renderList();             // если панель открыта – обновляем список
+    } else {
+        // даже если панель закрыта, обновим заголовок в DOM, чтобы при открытии он был актуальным
+        const totalAll = allMonuments.length;
+        const filteredCount = filtered.length;
+        const headerElement = document.querySelector('.sidebar-header h3');
+        if (headerElement) {
+            headerElement.textContent = `Список памятников (${filteredCount}/${totalAll})`;
+        }
+    }
 }
 
 async function loadPhotoAttribution() {
@@ -292,7 +391,6 @@ function displayMonuments(monuments) {
         markerMap.set(mon.id, marker);
     }
     updateFilterCounter();
-    updateSidebarIfVisible();
 }
 
 // Генерация попапа
@@ -352,13 +450,11 @@ async function loadData() {
 
 function applyFilter(filterValue) {
     currentFilter = filterValue;
-    let filtered = filterValue === 'all' ? allMonuments : allMonuments.filter(m => m.condition === filterValue);
-    displayMonuments(filtered);
+    updateMapAndList(); // эта функция вызовет displayMonuments с отфильтрованным массивом
     document.querySelectorAll('.filter-btn').forEach(btn => {
         if (btn.getAttribute('data-filter') === filterValue) btn.classList.add('active');
         else btn.classList.remove('active');
     });
-    updateSidebarIfVisible();
 }
 
 function updateFilterCounter() {
@@ -377,7 +473,39 @@ function bindFilterButtons() {
     document.querySelector('.filter-btn[data-filter="all"]')?.addEventListener('click', () => applyFilter('all'));
     document.querySelector('.filter-btn[data-filter="существует"]')?.addEventListener('click', () => applyFilter('существует'));
     document.querySelector('.filter-btn[data-filter="утрачен"]')?.addEventListener('click', () => applyFilter('утрачен'));
-    document.querySelector('.filter-btn[data-filter="reset"]')?.addEventListener('click', () => applyFilter('all'));
+    document.querySelector('.filter-btn[data-filter="reset"]')?.addEventListener('click', () => resetAllFilters());
+}
+
+function resetAllFilters() {
+    // Сброс переменных
+    currentFilter = 'all';
+    filterType = 'all';
+    filterMaterial = 'all';
+    filterSculptor = 'all';
+    filterPhoto = 'all';
+    searchQuery = '';
+
+    // Сброс UI кнопок статуса
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-filter') === 'all') btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+
+    // Сброс выпадающих списков
+    const typeSelect = document.getElementById('filter-type');
+    if (typeSelect) typeSelect.value = 'all';
+    const materialSelect = document.getElementById('filter-material');
+    if (materialSelect) materialSelect.value = 'all';
+    const sculptorSelect = document.getElementById('filter-sculptor');
+    if (sculptorSelect) sculptorSelect.value = 'all';
+    const photoSelect = document.getElementById('filter-photo');
+    if (photoSelect) photoSelect.value = 'all';
+
+    // Очистка поля поиска
+    const searchInput = document.getElementById('list-search-input');
+    if (searchInput) searchInput.value = '';
+
+    updateMapAndList();
 }
 
 // Модальное окно
@@ -501,36 +629,10 @@ function initLightbox() {
 // === Функции для боковой панели ===
 function renderList() {
     const container = document.getElementById('list-container');
-
     if (!container) return;
-
     container.innerHTML = '';
-
-    let filtered = allMonuments;
-
-    if (currentFilter !== 'all') {
-        filtered = filtered.filter(
-            m => m.condition === currentFilter
-        );
-    }
-
-    if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-
-        filtered = filtered.filter(m =>
-            [
-                m.title,
-                m.address,
-                m.sculptor,
-                m.year,
-                m.description
-            ]
-            .join(' ')
-            .toLowerCase()
-            .includes(q)
-        );
-    }
-
+    const filtered = getFilteredMonuments();   // ← единая фильтрация
+	
     // 🔽 ОБНОВЛЯЕМ ЗАГОЛОВОК
     const totalAll = allMonuments.length;
     const filteredCount = filtered.length;
@@ -669,13 +771,7 @@ function toggleSidebar(show) {
         sidebarVisible = show;
     }
     if (sidebarVisible) {
-        renderList();
-    }
-}
-
-function updateSidebarIfVisible() {
-    if (sidebarVisible) {
-        renderList();
+        updateMapAndList();
     }
 }
 
@@ -714,9 +810,40 @@ async function init() {
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             searchQuery = e.target.value;
-            if (sidebarVisible) renderList();
+            updateMapAndList();
         });
     }
+	
+	// Обработчики дополнительных фильтров
+	const typeSelect = document.getElementById('filter-type');
+	if (typeSelect) {
+		typeSelect.addEventListener('change', (e) => {
+			filterType = e.target.value;
+			updateMapAndList();
+		});
+	}
+	const materialSelect = document.getElementById('filter-material');
+	if (materialSelect) {
+		materialSelect.addEventListener('change', (e) => {
+			filterMaterial = e.target.value;
+			updateMapAndList();
+		});
+	}
+	const sculptorSelect = document.getElementById('filter-sculptor');
+	if (sculptorSelect) {
+		sculptorSelect.addEventListener('change', (e) => {
+			filterSculptor = e.target.value;
+			updateMapAndList();
+		});
+	}
+	const photoSelect = document.getElementById('filter-photo');
+	if (photoSelect) {
+		photoSelect.addEventListener('change', (e) => {
+			filterPhoto = e.target.value;
+			updateMapAndList();
+		});
+	}
+	
     console.log('init: завершено');
 }
 

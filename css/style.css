@@ -447,3 +447,30 @@ body {
         height: 120px;
     }
 }
+.extra-filters {
+    background: #2c4b3e;
+    padding: 6px 16px;
+    display: flex;
+    justify-content: flex-start; 
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #3e6b58;
+}
+.extra-filters select {
+    background: #1e2f3a;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+.extra-filters select:hover {
+    background: #3e6b58;
+}
+@media (max-width: 600px) {
+    .extra-filters select {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+    }
+}

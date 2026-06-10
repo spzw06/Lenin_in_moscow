@@ -25,8 +25,27 @@
     <button class="filter-btn active" data-filter="all">Все точки</button>
     <button class="filter-btn" data-filter="существует">🔴 Существующие</button>
     <button class="filter-btn" data-filter="утрачен">🔘 Утраченные</button>
-   <button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить фильтр</button>
+    <button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить фильтр</button>
     <button id="toggle-list-btn" class="filter-btn" style="background: #0f1c24; margin-left: auto;">📋 Отобразить список</button>
+</div>
+<div class="extra-filters">
+    <select id="filter-type">
+        <option value="all">Тип: все</option>
+        <option value="фигура">Фигура</option>
+        <option value="бюст">Бюст</option>
+        <option value="не указан">Не указан</option>
+    </select>
+    <select id="filter-material">
+        <option value="all">Материал: все</option>
+    </select>
+    <select id="filter-sculptor">
+        <option value="all">Скульптор: все</option>
+    </select>
+    <select id="filter-photo">
+        <option value="all">Фото: все</option>
+        <option value="yes">Есть фото</option>
+        <option value="no">Нет фото</option>
+    </select>
 </div>
 <div id="map"></div>
 <div class="footer-note">Источник: GitHub | Всего точек: <span id="totalCount">0</span></div>
