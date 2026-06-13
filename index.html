@@ -19,14 +19,20 @@
 <body>
 <div class="map-header">
     <h1>Памятники Ленину в Москве</h1>
-    <p>📌 Данные из GitHub репозитория | для информации - клик по маркеру</p>
+    <p>📌 данные взяты из 
+        <a href="https://web.archive.org/web/20250613224843/http://leninstatues.ru/moscow" target="_blank" rel="noopener noreferrer">leninstatues.ru</a>, 
+        <a href="https://yandex.ru/maps/" target="_blank" rel="noopener noreferrer">yandex.ru/maps</a>, 
+        <a href="https://wikimapia.org/" target="_blank" rel="noopener noreferrer">wikimapia.org</a> и 
+        <a href="https://pastvu.com/" target="_blank" rel="noopener noreferrer">pastvu.com</a>
+    </p>
 </div>
+<button id="collapse-toggle-btn" class="filter-btn collapse-float">▲ Свернуть</button>
 <div class="filter-bar">
     <button class="filter-btn active" data-filter="all">Все точки</button>
-    <button class="filter-btn" data-filter="существует">🔴 Существующие</button>
-    <button class="filter-btn" data-filter="утрачен">🔘 Утраченные</button>
-    <button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить фильтр</button>
-    <button id="toggle-list-btn" class="filter-btn" style="margin-left: auto;">📋 Отобразить список</button>
+    <button class="filter-btn" data-filter="существует">🔴 Существует</button>
+    <button class="filter-btn" data-filter="утрачен">🔘 Утрачен</button>
+	<button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить</button>
+	<button id="toggle-list-btn" class="filter-btn" style="margin-left: auto;">📋 Список</button>
 </div>
 <div class="extra-filters">
     <select id="filter-type">

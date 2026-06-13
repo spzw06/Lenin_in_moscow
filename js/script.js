@@ -465,8 +465,8 @@ function updateFilterCounter() {
     const existsBtn = document.querySelector('.filter-btn[data-filter="существует"]');
     const lostBtn = document.querySelector('.filter-btn[data-filter="утрачен"]');
     if (allBtn) allBtn.innerHTML = `Все точки (${allCount})`;
-    if (existsBtn) existsBtn.innerHTML = `🔴 Существующие (${existsCount})`;
-    if (lostBtn) lostBtn.innerHTML = `🔘 Утраченные (${lostCount})`;
+    if (existsBtn) existsBtn.innerHTML = `🔴 Существует (${existsCount})`;
+    if (lostBtn) lostBtn.innerHTML = `🔘 Утрачен (${lostCount})`;
 }
 
 function bindFilterButtons() {
@@ -841,6 +841,14 @@ async function init() {
 		photoSelect.addEventListener('change', (e) => {
 			filterPhoto = e.target.value;
 			updateMapAndList();
+		});
+	}
+	// Кнопка сворачивания/разворачивания
+	const collapseBtn = document.getElementById('collapse-toggle-btn');
+	if (collapseBtn) {
+		collapseBtn.addEventListener('click', () => {
+			document.body.classList.toggle('collapsed');
+			collapseBtn.textContent = document.body.classList.contains('collapsed') ? '▼ Развернуть' : '▲ Свернуть';
 		});
 	}
 	

@@ -87,11 +87,7 @@ body {
     border-radius: 30px;
     font-size: 0.9rem;
 }
-@media (max-width: 600px) {
-    .map-header h1 {
-        font-size: 1.2rem;
-    }
-}
+
 
 /* Стили для галереи изображений в попапе */
 .photo-gallery {
@@ -228,12 +224,7 @@ body {
 }
 .lightbox-prev { left: 20px; }
 .lightbox-next { right: 20px; }
-@media (max-width: 600px) {
-    .lightbox-prev, .lightbox-next {
-        font-size: 24px;
-        padding: 8px 10px;
-    }
-}
+
 
 /* Боковая панель списка (без изменений, оставляем как было) */
 .list-sidebar {
@@ -414,9 +405,9 @@ body {
 .filter-bar, .extra-filters {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px 16px;
-    background: #fafaf8;  /* светлый фон, почти белый */
+    gap: 10px;
+    padding: 6px 12px;      /* было 8px 16px */
+    background: #fafaf8;
     border-bottom: 2px solid #c12b2b;
     flex-wrap: wrap;
     box-shadow: 0 2px 4px rgba(0,0,0,0.02);
@@ -432,13 +423,13 @@ body {
     background: #ffffff;
     border: 1px solid #c0c0c0;
     color: #222;
-    padding: 6px 18px;
+    padding: 4px 14px;      /* было 6px 18px */
     border-radius: 30px;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.7rem;      /* было 0.85rem */
     font-weight: 500;
     transition: all 0.2s ease;
-    height: 36px;
+    height: 28px;           /* было 36px */
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -485,13 +476,13 @@ body {
 }
 @media (max-width: 600px) {
     .filter-btn, .extra-filters select, #toggle-list-btn {
-        padding: 4px 12px;
-        font-size: 0.75rem;
-        height: 30px;
+        padding: 3px 10px;
+        font-size: 0.65rem;
+        height: 26px;
     }
     .extra-filters select {
-        padding-right: 28px;
-        background-position: right 8px center;
+        padding-right: 24px;
+        background-position: right 6px center;
     }
     .list-sidebar {
         width: 100%;
@@ -499,4 +490,61 @@ body {
     .list-card-photo {
         height: 120px;
     }
+	.lightbox-prev, .lightbox-next {
+        font-size: 24px;
+        padding: 8px 10px;
+    }
+	.map-header h1 {
+        font-size: 1.2rem;
+    }
+}
+
+
+/* Сворачивание панелей */
+body.collapsed .map-header,
+body.collapsed .extra-filters {
+    display: none;
+}
+body.collapsed .filter-bar .filter-btn:not(#toggle-list-btn) {
+    display: none;
+}
+body.collapsed .filter-bar {
+    justify-content: flex-start;
+}
+/* Плавающая кнопка сворачивания в левом верхнем углу */
+.collapse-float {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1100;
+    background: #ffffff;
+    border: 1px solid #c12b2b;
+    color: #c12b2b;
+    padding: 4px 14px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 500;
+    height: 28px;
+    transition: all 0.2s ease;
+	display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+	opacity: 0.7; 
+}
+.collapse-float:hover {
+    background: #c12b2b;
+    color: #ffffff;
+	opacity: 1;  
+}
+/* При свернутом состоянии кнопка остаётся красной с белым текстом */
+body.collapsed .collapse-float {
+    background: #c12b2b;
+    color: #ffffff;
+    border-color: #c12b2b;
+    opacity: 1;
+}
+body.collapsed .collapse-float:hover {
+    background: #a12323;
 }
