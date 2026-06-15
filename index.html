@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="js/config.js"></script>
     <script src="js/script.js" defer></script>
+    <script src="js/test.js" defer></script>
 </head>
 <body>
 <div class="map-header">
@@ -31,8 +32,9 @@
     <button class="filter-btn active" data-filter="all">Все точки</button>
     <button class="filter-btn" data-filter="существует">🔴 Существует</button>
     <button class="filter-btn" data-filter="утрачен">🔘 Утрачен</button>
-	<button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить</button>
-	<button id="toggle-list-btn" class="filter-btn" style="margin-left: auto;">📋 Список</button>
+    <button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить</button>
+    <button id="toggle-list-btn" class="filter-btn" style="margin-left: auto;">📋 Список</button>
+    <button id="start-test-btn" class="filter-btn" style="margin-left: 8px;">🎯 Пройти тест</button>
 </div>
 <div class="extra-filters">
     <select id="filter-type">
@@ -67,9 +69,35 @@
         <input type="text" id="list-search-input" placeholder="🔍 Поиск по названию или адресу...">
     </div>
     <div id="list-container" class="list-container">
-        <!-- сюда динамически генерируются карточки -->
         <div class="loading-placeholder">Загрузка...</div>
     </div>
 </div>
+
+<!-- Модальное окно викторины -->
+<div id="quiz-modal" class="quiz-modal" style="display: none;">
+    <div class="quiz-modal-content">
+        <span class="quiz-close-btn">&times;</span>
+        <h2>🧠 Насколько хорошо ты знаешь памятники Ленину в Москве?</h2>
+        
+        <!-- Шкала прогресса -->
+        <div class="quiz-progress" id="quiz-progress"></div>
+
+        <!-- Контейнер вопроса -->
+        <div id="quiz-question-container" class="quiz-question-container">
+            <div class="quiz-photo-wrapper">
+                <img id="quiz-photo" class="quiz-photo" src="" alt="Памятник Ленину">
+            </div>
+            <div class="quiz-options" id="quiz-options"></div>
+        </div>
+
+        <!-- Экран результатов (скрыт до завершения) -->
+        <div id="quiz-result-screen" class="quiz-result-screen" style="display: none;">
+            <div class="quiz-result-score" id="quiz-result-score"></div>
+            <div class="quiz-result-phrase" id="quiz-result-phrase"></div>
+            <button id="quiz-retry-btn" class="filter-btn" style="margin-top: 20px;">🔄 Пройти заново</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

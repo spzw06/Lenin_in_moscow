@@ -548,3 +548,216 @@ body.collapsed .collapse-float {
 body.collapsed .collapse-float:hover {
     background: #a12323;
 }
+
+/* ... все существующие стили остаются без изменений ... */
+
+/* ========== СТИЛИ ДЛЯ ТЕСТА ========== */
+/* ========== СТИЛИ ДЛЯ ТЕСТА ========== */
+.quiz-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    overflow: hidden; /* убираем прокрутку у модального окна */
+}
+
+.quiz-modal-content {
+    background: var(--color-bg-primary);
+    width: 90%;
+    max-width: 750px;
+    max-height: 90vh;
+    border-radius: 28px;
+    overflow-y: auto; /* внутренняя прокрутка при необходимости */
+    padding: 20px 24px;
+    box-shadow: 0 20px 35px rgba(0, 0, 0, 0.3);
+    position: relative;
+    border: 1px solid rgba(193, 43, 43, 0.2);
+}
+
+/* Адаптация под мобильные – убираем лишние отступы */
+@media (max-width: 600px) {
+    .quiz-modal-content {
+        padding: 16px;
+        width: 95%;
+        max-height: 85vh;
+    }
+}
+
+.quiz-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-size: 30px;
+    font-weight: 300;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+.quiz-close-btn:hover {
+    color: #c12b2b;
+}
+
+.quiz-modal-content h2 {
+    font-size: 1.4rem;
+    margin: 0 0 12px 0;
+    color: #c12b2b;
+    font-weight: 500;
+    letter-spacing: -0.3px;
+    padding-right: 30px;
+}
+
+/* Шкала прогресса – маленькие квадраты */
+.quiz-progress {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin: 8px 0 20px;
+    flex-wrap: wrap;
+}
+
+.quiz-progress-segment {
+    width: 24px;
+    height: 24px;
+    background: #e8e8e8;
+    border: 1px solid #ccc;
+    transition: all 0.2s ease;
+    display: inline-block;
+    font-size: 0;
+    line-height: 0;
+}
+
+.quiz-progress-segment.correct {
+    background: #c12b2b;
+    border-color: #a12323;
+}
+
+.quiz-progress-segment.wrong {
+    background: #b0b0b0;
+    border-color: #8a8a8a;
+}
+
+.quiz-progress-segment.active {
+    border: 2px solid #c12b2b;
+    box-shadow: 0 0 0 2px rgba(193, 43, 43, 0.3);
+    transform: scale(1.1);
+}
+
+/* Фото памятника */
+.quiz-photo-wrapper {
+    text-align: center;
+    margin-bottom: 20px;
+    background: #f8f8f8;
+    border-radius: 20px;
+    padding: 8px;
+}
+
+.quiz-photo {
+    max-width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 600px) {
+    .quiz-photo {
+        max-height: 200px;
+    }
+}
+
+/* Кнопки вариантов ответов – сетка 2x2 */
+.quiz-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.quiz-option-btn {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 16px;
+    padding: 12px 8px;
+    font-size: 0.9rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    font-weight: 500;
+    color: #222;
+    word-break: break-word;
+}
+
+.quiz-option-btn:hover {
+    border-color: #c12b2b;
+    background: #fff6f6;
+    transform: translateY(-2px);
+}
+
+.quiz-option-btn.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.quiz-option-btn.disabled:hover {
+    transform: none;
+    border-color: #e0e0e0;
+}
+
+@media (max-width: 550px) {
+    .quiz-options {
+        gap: 8px;
+    }
+    .quiz-option-btn {
+        padding: 10px 6px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Экран результатов */
+.quiz-result-screen {
+    text-align: center;
+    padding: 10px 0;
+}
+
+.quiz-result-score {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: #c12b2b;
+}
+
+.quiz-result-phrase {
+    font-size: 1.1rem;
+    line-height: 1.4;
+    background: #f9f9f9;
+    padding: 16px;
+    border-radius: 24px;
+    color: #2c3e44;
+    margin-bottom: 10px;
+}
+
+.quiz-result-phrase q {
+    font-style: italic;
+    color: #c12b2b;
+    font-weight: 500;
+}
+
+@media (max-width: 600px) {
+    .quiz-result-score {
+        font-size: 1.4rem;
+    }
+    .quiz-result-phrase {
+        font-size: 0.95rem;
+    }
+}

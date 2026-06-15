@@ -14,7 +14,7 @@ let filterType = 'all';
 let filterMaterial = 'all';
 let filterSculptor = 'all';
 let filterPhoto = 'all';
-
+window.allMonuments = [];
 
 // Хранилище SVG-иконок
 let svgIcons = {
@@ -250,6 +250,7 @@ function processDataFromCSV(data) {
         });
         validPoints++;
     }
+	window.allMonuments = allMonuments;   // <-- ДОБАВИТЬ ЭТУ СТРОКУ
     console.log('✅ Загружено точек:', validPoints);
     console.log('⚠️ Пропущено всего:', data.length - validPoints);
     console.log('📋 Детали пропущенных:', skipped);
