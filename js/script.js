@@ -882,7 +882,7 @@ function highlightMonument(id) {
 
     // Панорамируем к координатам
     if (map) {
-        map.setView([monument.lat, monument.lon], 16);
+        map.panTo([monument.lat, monument.lon]);
     }
 
     // Открываем попап у маркера
