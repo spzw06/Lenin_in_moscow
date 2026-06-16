@@ -83,13 +83,14 @@
         <div class="quiz-progress" id="quiz-progress"></div>
 
         <!-- Контейнер вопроса -->
-        <div id="quiz-question-container" class="quiz-question-container">
-            <div class="quiz-photo-wrapper">
-                <img id="quiz-photo" class="quiz-photo" src="" alt="Памятник Ленину">
-            </div>
-            <div class="quiz-options" id="quiz-options"></div>
-        </div>
-
+		<div id="quiz-question-container" class="quiz-question-container">
+			<div class="quiz-photo-wrapper">
+				<img id="quiz-photo" class="quiz-photo" src="" alt="Памятник Ленину">
+				<!-- Блок фидбека теперь внутри обёртки, поверх фото -->
+				<div id="quiz-feedback" class="quiz-feedback" style="display: none;"></div>
+			</div>
+			<div class="quiz-options" id="quiz-options"></div>
+		</div>
         <!-- Экран результатов (скрыт до завершения) -->
         <div id="quiz-result-screen" class="quiz-result-screen" style="display: none;">
             <div class="quiz-result-score" id="quiz-result-score"></div>

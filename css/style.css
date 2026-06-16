@@ -654,11 +654,13 @@ body.collapsed .collapse-float:hover {
 
 /* Фото памятника */
 .quiz-photo-wrapper {
+    position: relative;  /* важно для абсолютного позиционирования фидбека */
     text-align: center;
     margin-bottom: 20px;
     background: #f8f8f8;
     border-radius: 20px;
     padding: 8px;
+    overflow: hidden; /* чтобы фидбек не вылезал за скругления */
 }
 
 .quiz-photo {
@@ -667,6 +669,8 @@ body.collapsed .collapse-float:hover {
     object-fit: contain;
     border-radius: 16px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: block;
+    margin: 0 auto;
 }
 
 @media (max-width: 600px) {
@@ -691,22 +695,27 @@ body.collapsed .collapse-float:hover {
     font-size: 0.9rem;
     text-align: center;
     cursor: pointer;
-    transition: all 0.2s;
     font-family: inherit;
     font-weight: 500;
     color: #222;
     word-break: break-word;
+    transition: background 0.1s, border-color 0.1s; /* только нужные свойства, быстрее */
+    outline: none; /* убираем стандартный outline */
 }
 
 .quiz-option-btn:hover {
     border-color: #c12b2b;
     background: #fff6f6;
-    transform: translateY(-2px);
+}
+
+.quiz-option-btn:focus {
+    outline: none; /* дополнительно для безопасности */
 }
 
 .quiz-option-btn.disabled {
     cursor: not-allowed;
     opacity: 0.6;
+	pointer-events: none; /* полностью отключаем взаимодействие, чтобы hover не срабатывал */
 }
 
 .quiz-option-btn.disabled:hover {
@@ -761,3 +770,65 @@ body.collapsed .collapse-float:hover {
         font-size: 0.95rem;
     }
 }
+
+/* ========== СТИЛИ ДЛЯ ТЕСТА (дополнения) ========== */
+
+/* Блок фидбека */
+/* Блок фидбека – абсолютно поверх фото */
+.quiz-feedback {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4rem;
+    font-weight: 700;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    text-align: center;
+    pointer-events: none; /* чтобы не мешать кликам по кнопкам (хотя они заблокированы) */
+    transition: opacity 0.3s;
+    backdrop-filter: blur(4px);
+}
+
+.quiz-feedback.correct {
+    background: rgba(40, 167, 69, 0.85); /* зелёный полупрозрачный */
+    color: #fff;
+}
+
+.quiz-feedback.wrong {
+    background: rgba(220, 53, 69, 0.85); /* красный полупрозрачный */
+    color: #fff;
+}
+
+/* Кнопки вариантов – состояния выбора */
+.quiz-option-btn.selected {
+    border-color: #ffc107;
+    background: #fff3cd;
+}
+
+.quiz-option-btn.correct {
+    border-color: #28a745;
+    background: #d4edda;
+}
+
+.quiz-option-btn.wrong {
+    border-color: #dc3545;
+    background: #f8d7da;
+}
+
+/* Адаптация под мобильные */
+@media (max-width: 600px) {
+    .quiz-feedback {
+        font-size: 1.6rem;
+        padding: 12px;
+    }
+    .quiz-photo {
+        max-height: 200px;
+    }
