@@ -14,6 +14,8 @@ let filterType = 'all';
 let filterMaterial = 'all';
 let filterSculptor = 'all';
 let filterPhoto = 'all';
+let pendingMonumentId = null;   // для запроса, если данные ещё не загружены
+
 window.allMonuments = [];
 
 // Хранилище SVG-иконок
@@ -22,6 +24,8 @@ let svgIcons = {
     бюст: null,
     'не указан': null
 };
+
+console.log('🧩 pendingMonumentId инициализирован:', pendingMonumentId);
 
 // Загрузка SVG-файлов
 async function loadSvgIcons() {
@@ -261,6 +265,17 @@ function processDataFromCSV(data) {
     }
     populateFilterOptions();   // заполняем выпадающие списки (добавить эту строку)
     updateMapAndList();        // обновляем карту и список
+	// Если был отложенный запрос на памятник – выполняем
+	console.log('📌 processDataFromCSV: pendingMonumentId =', pendingMonumentId);
+	if (pendingMonumentId !== null) {
+		console.log('🔁 Выполняем отложенный запрос на памятник', pendingMonumentId);
+		highlightMonument(pendingMonumentId);
+		pendingMonumentId = null;
+	}
+	if (window._checkPendingQuiz) {
+		console.log('📌 Вызов _checkPendingQuiz');
+		window._checkPendingQuiz();
+	}
 }
 
 function populateFilterOptions() {
@@ -380,7 +395,7 @@ async function loadPhotoAttribution() {
 }
 
 // Отображение маркеров
-function displayMonuments(monuments) {
+function originalDisplayMonuments(monuments) {
     markersCluster.clearLayers();
     markerMap.clear();
     for (const mon of monuments) {
@@ -711,30 +726,14 @@ function renderList() {
 			card.appendChild(info);
 
 			card.addEventListener('click', () => {
-
-				document
-					.querySelectorAll('.list-card')
-					.forEach(c => c.classList.remove('active'));
-
-				card.classList.add('active');
-
-				const marker = markerMap.get(mon.id);
-
-				if (marker) {
-					markersCluster.zoomToShowLayer(
-						marker,
-						() => marker.openPopup()
-					);
+				// Меняем хеш вместо прямого вызова
+				if (window.router) {
+					window.router.goToMonument(mon.id);
+				} else {
+					// Fallback
+					highlightMonument(mon.id);
 				}
-
-				
-				map.setView(
-						[mon.lat, mon.lon],
-						16
-					);
-				
 			});
-
 				
 
 			fragment.appendChild(card);
@@ -858,6 +857,95 @@ async function init() {
 
 window.parseCSV = parseCSV;
 window.processDataFromCSV = processDataFromCSV;
+
+// Делаем markerMap доступным глобально (для роутера)
+window.markerMap = markerMap;  // или экспортируем через функцию
+
+// Функция подсветки памятника по id
+function highlightMonument(id) {
+	 console.log('🔥 highlightMonument вызван с id:', id, 'allMonuments.length =', allMonuments.length);
+    // Если данные ещё не загружены – сохраняем запрос и выходим
+    if (!allMonuments || allMonuments.length === 0) {
+        console.warn('Данные ещё не загружены, сохраняем запрос', id);
+        pendingMonumentId = id;
+        return;
+    }
+    const monId = typeof id === 'string' ? parseInt(id, 10) : id;
+    const monument = allMonuments.find(m => m.id === monId);
+    if (!monument) {
+        console.warn(`Памятник с id ${monId} не найден`);
+        // Показываем сообщение и перенаправляем на главную
+        alert('Памятник не найден');
+        if (window.router) window.router.goHome();
+        return;
+    }
+
+    // Панорамируем к координатам
+    if (map) {
+        map.setView([monument.lat, monument.lon], 16);
+    }
+
+    // Открываем попап у маркера
+    const marker = markerMap.get(monId);
+    if (marker) {
+        marker.openPopup();
+    } else {
+        // Если маркер не найден, возможно, он в кластере – ищем
+        console.warn('Маркер не найден в markerMap, пытаемся найти в кластере');
+        // Можно реализовать поиск по кластеру, но для простоты показываем сообщение
+        alert('Маркер не найден на карте, возможно, он скрыт фильтром');
+    }
+
+    // Если боковая панель со списком открыта – подсвечиваем карточку
+    const cards = document.querySelectorAll('.list-card');
+    cards.forEach(card => {
+        card.classList.remove('active');
+        if (card.dataset.id && parseInt(card.dataset.id) === monId) {
+            card.classList.add('active');
+        }
+    });
+}
+
+// Экспортируем в глобальный объект для роутера
+window._highlightMonument = highlightMonument;
+
+// Функция для сброса к главному виду (закрыть все попапы, сбросить выделения)
+function showMainView() {
+    console.log('🏠 showMainView');
+    // НЕ сбрасываем pendingMonumentId, если он был установлен для памятника
+    // pendingMonumentId = null;  // закомментируем, чтобы не терять запрос
+    if (map) map.closePopup();
+    document.querySelectorAll('.list-card').forEach(card => card.classList.remove('active'));
+    if (window._closeQuiz) window._closeQuiz();
+    if (sidebarVisible) toggleSidebar(false);
+}
+
+window._showMainView = showMainView;
+
+// Дополнительно: функция для обработки клика по маркеру (будет использоваться в displayMonuments)
+// Для этого модифицируем создание маркеров в displayMonuments
+// Вместо прямой привязки popup, добавляем обработчик click, который меняет хеш
+// Но поскольку у нас уже есть привязка через bindPopup, нужно аккуратно совместить
+
+// Переопределяем displayMonuments, чтобы добавить обработчик клика
+// Сохраним оригинальную функцию и заменим её обёрткой
+
+displayMonuments = function(monuments) {
+    originalDisplayMonuments(monuments);
+    for (const mon of monuments) {
+        const marker = markerMap.get(mon.id);
+        if (marker) {
+            marker.off('click');
+            marker.on('click', function(e) {
+                if (window.router) {
+                    window.router.goToMonument(mon.id);
+                } else {
+                    highlightMonument(mon.id);
+                }
+            });
+        }
+    }
+};
 
 // Запуск
 init();
