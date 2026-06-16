@@ -621,13 +621,13 @@ body.collapsed .collapse-float:hover {
     display: flex;
     gap: 6px;
     justify-content: center;
-    margin: 8px 0 20px;
+    margin: 4px 0 4px;
     flex-wrap: wrap;
 }
 
 .quiz-progress-segment {
-    width: 24px;
-    height: 24px;
+    width: 16px;
+    height: 16px;
     background: #e8e8e8;
     border: 1px solid #ccc;
     transition: all 0.2s ease;
