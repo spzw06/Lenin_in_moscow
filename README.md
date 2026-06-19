@@ -60,19 +60,22 @@ This is a single-page application (SPA) featuring a map of Moscow with Lenin mon
 
 ## 🛠️ Локальный запуск / Local Setup
 
-1. Клонируйте репозиторий / Clone the repository:
+1. Клонируйте репозиторий:
    ```bash
    git clone https://github.com/spzw06/Lenin_in_moscow.git
    cd Lenin_in_moscow
-2. для локального запуска страницы рекомендую использовать VS code и ресширение Live Server
+   ```
 
-Откройте файл index.html в браузере.
-Для удобной разработки можно использовать расширение Live Server в VS Code.
+2. Откройте файл `index.html` в браузере.  
+   Для удобной разработки можно использовать расширение Live Server в VS Code.
 
-Примечание: для работы карты требуется интернет-соединение (загрузка Leaflet и картографических тайлов).
+> **Примечание:** для работы карты требуется интернет-соединение (загрузка Leaflet и картографических тайлов).
+
+---
 
 ## 📁 Структура проекта / Project Structure
-text
+
+```
 Lenin_in_moscow/
 ├── css/
 │   └── style.css          # Основные стили
@@ -86,27 +89,37 @@ Lenin_in_moscow/
 │   └── router.js          # Хеш-роутинг
 ├── index.html             # Главная страница
 └── README.md              # Этот файл
+```
+
+---
 
 ## 🧠 Викторина / Quiz
+
 В викторине предлагается 10 случайных вопросов: по фотографии нужно выбрать правильный адрес памятника из четырёх вариантов. После каждого ответа показывается фидбек, а в конце — результат с тематической цитатой Ленина.
 
 The quiz offers 10 random questions: based on a photo, you must choose the correct address from four options. After each answer, feedback is shown, and at the end — a result with a thematic Lenin quote.
 
+---
+
 ## 🤝 Вклад / Contributing
+
 Если вы хотите дополнить базу данных или улучшить код — создавайте Issue или Pull Request.
 
 If you'd like to add data or improve the code — feel free to open an Issue or Pull Request.
 
-## 📄 Лицензия / License
-Проект распространяется под лицензией MIT. Подробнее см. файл LICENSE (если добавлен).
+---
 
-This project is distributed under the MIT License. See the LICENSE file for details (if added).
+## 📄 Лицензия / License
+
+Проект распространяется под лицензией MIT. Подробнее см. файл [LICENSE](LICENSE) (если добавлен).
+
+This project is distributed under the MIT License. See the [LICENSE](LICENSE) file for details (if added).
+
+---
 
 ## 🙏 Благодарности / Acknowledgements
-Leaflet — интерактивные карты
 
-Leaflet.markercluster — кластеризация маркеров
-
-CartoDB — базовые тайлы
-
-Все авторы фотографий и источников данных
+- [Leaflet](https://leafletjs.com/) — интерактивные карты
+- [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster) — кластеризация маркеров
+- [CartoDB](https://carto.com/) — базовые тайлы
+- Все авторы фотографий и источников данных
