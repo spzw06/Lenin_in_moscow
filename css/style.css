@@ -62,6 +62,12 @@ body {
     padding: 3px 8px;
     border-radius: 12px;
     z-index: 1000;
+    font-weight: bold;          /* делаем весь текст жирным */
+}
+.footer-note a {
+    font-weight: bold;          /* ссылки тоже жирные */
+    color: #f39c12;             /* цвет уже задан в инлайне, но можно продублировать */
+    text-decoration: none;      /* чтобы не было подчёркивания, если нужно */
 }
 .loading-overlay {
     position: absolute;

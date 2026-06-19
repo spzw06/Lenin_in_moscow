@@ -72,8 +72,11 @@
     <button class="filter-btn" data-filter="существует">🔴 Существует</button>
     <button class="filter-btn" data-filter="утрачен">🔘 Утрачен</button>
     <button class="filter-btn reset-btn" data-filter="reset">⟳ Сбросить</button>
-    <button id="start-test-btn" class="filter-btn" style="margin-left: auto;">🎯 Пройти тест</button>
-	<button id="toggle-list-btn" class="filter-btn" style="margin-left: 8px;">📋 Список</button>
+    <!-- Блок с двумя кнопками, прижатый к правому краю -->
+    <div style="display: flex; gap: 10px; margin-left: auto;">
+        <button id="start-test-btn" class="filter-btn">🎯 Пройти тест</button>
+        <button id="toggle-list-btn" class="filter-btn">📋 Список</button>
+    </div>
 </div>
 <div class="extra-filters">
     <select id="filter-type">
@@ -95,7 +98,12 @@
     </select>
 </div>
 <div id="map"></div>
-<div class="footer-note">Источник: GitHub | Всего точек: <span id="totalCount">0</span></div>
+<div class="footer-note">
+    Проект размещен на&nbsp;<a href="https://github.com/spzw06/Lenin_in_moscow" target="_blank" style="color: #f39c12; text-decoration: none;">GitHub</a>&nbsp;| Всего точек: <span id="totalCount">0</span>
+    &nbsp;|&nbsp;<a href="https://forms.gle/rYFZ2PjYjWTWyrYA9" target="_blank" style="color: #f39c12; text-decoration: none;">📝 Сообщить о памятнике / уточнить / связаться</a>
+</div>
+
+
 <div id="loading-overlay" class="loading-overlay"><div>📡 Загрузка данных из репозитория...</div><div style="font-size:0.8rem;">Пожалуйста, подождите</div></div>
 
 <!-- Боковая панель со списком -->
