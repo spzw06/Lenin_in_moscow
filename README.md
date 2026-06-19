@@ -1,1 +1,67 @@
-web-page: http://spzw06.github.io/Lenin_in_moscow
+# Памятники Ленину в Москве / Lenin's Monuments in Moscow
+
+[![Live Demo](https://img.shields.io/badge/demo-ильичвмоскве.рф-cc0000?style=for-the-badge&logo=githubpages)](https://ильичвмоскве.рф)
+[![GitHub Pages](https://img.shields.io/badge/GitHub_Pages-spzw06.github.io/Lenin_in_moscow-2ecc71?style=for-the-badge&logo=github)](https://spzw06.github.io/Lenin_in_moscow)
+
+Интерактивная карта памятников В. И. Ленину в Москве с фильтрацией, викториной и возможностью поделиться ссылкой на конкретный объект.
+
+Interactive map of Lenin's monuments in Moscow with filtering, a quiz, and shareable links to individual objects.
+
+---
+
+## 📖 Описание / Description
+
+**Русский**  
+Проект представляет собой одностраничное приложение (SPA) с картой Москвы, на которую нанесены памятники Ленину. Данные собраны из открытых источников. Реализованы:
+
+- Фильтрация по статусу (существует / утрачен)
+- Фильтрация по типу (фигура / бюст), скульптору и наличию фото
+- Боковая панель со списком памятников и поиском по названию/адресу
+- Викторина «Насколько хорошо ты знаешь памятники Ленину?» (10 вопросов с фото)
+- Хеш-роутинг — можно делиться ссылками на конкретный памятник (`#/monument/123`) или на викторину (`#/quiz`)
+- Адаптивный дизайн для мобильных устройств (в разработке)
+- Кластеризация маркеров для удобства просмотра
+
+**English**  
+This is a single-page application (SPA) featuring a map of Moscow with Lenin monuments marked. Data is collected from open sources. Features include:
+
+- Filtering by status (existing / lost)
+- Filtering by type (statue / bust), sculptor, and photo availability
+- A sidebar with a full list of monuments and search by name/address
+- A quiz "How well do you know Lenin's monuments?" (10 questions with photos)
+- Hash-based routing — shareable links to a specific monument (`#/monument/123`) or the quiz (`#/quiz`)
+- Responsive design for mobile devices (in progress)
+- Marker clustering for better map readability
+
+---
+
+## 🚀 Демо / Live Demo
+
+| Ссылка / Link | Описание / Description |
+|---------------|------------------------|
+| [**ильичвмоскве.рф**](https://ильичвмоскве.рф) | Основной домен (перенаправляет на GitHub Pages) |
+| [**spzw06.github.io/Lenin_in_moscow**](https://spzw06.github.io/Lenin_in_moscow) | Прямая ссылка на GitHub Pages |
+
+---
+
+## 🗂️ Источники данных / Data Sources
+
+Данные собраны из следующих открытых источников:
+
+- [leninstatues.ru](https://web.archive.org/web/20250613224843/http://leninstatues.ru/moscow) (архивная копия)
+- [Yandex Maps](https://yandex.ru/maps/)
+- [Wikimapia](https://wikimapia.org/)
+- [PastVu](https://pastvu.com/)
+
+Координаты и атрибуты памятников находятся в файле [`data/lenin_monuments_coords.csv`](data/lenin_monuments_coords.csv).  
+Фотографии — в папке [`data/images/`](data/images/).
+
+---
+
+## 🛠️ Локальный запуск / Local Setup
+
+1. Клонируйте репозиторий / Clone the repository:
+   ```bash
+   git clone https://github.com/spzw06/Lenin_in_moscow.git
+   cd Lenin_in_moscow
+2. для локального запуска страницы рекомендую использовать VS code и ресширение Live Server
