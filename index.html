@@ -18,16 +18,51 @@
     <script src="js/script.js" defer></script>
     <script src="js/test.js" defer></script>
     <script src="js/router.js" defer></script>
+	<!-- SEO -->
+	<meta name="description" content="Интерактивная карта памятников В. И. Ленину в Москве. Фильтрация по статусу, типу, скульптору. Викторина и возможность поделиться ссылкой на конкретный памятник.">
+	<meta name="keywords" content="Ленин, памятники, Москва, карта, интерактивная карта, история, советские памятники, викторина">
+	<meta name="robots" content="index, follow">
+	<link rel="canonical" href="https://ильичвмоскве.рф/">
+	<script type="application/ld+json">
+	{
+	  "@context": "https://schema.org",
+	  "@type": "WebApplication",
+	  "name": "Памятники Ленину в Москве",
+	  "description": "Интерактивная карта памятников Ленину с фильтрацией и викториной.",
+	  "url": "https://ильичвмоскве.рф/",
+	  "applicationCategory": "Map Application",
+	  "browserRequirements": "Requires JavaScript"
+	}
+	</script>
+
+	<!-- Open Graph (для соцсетей) -->
+	<meta property="og:title" content="Памятники Ленину в Москве — интерактивная карта">
+	<meta property="og:description" content="Интерактивная карта памятников В. И. Ленину в Москве. Фильтрация, викторина, возможность делиться ссылками.">
+	<meta property="og:type" content="website">
+	<meta property="og:url" content="https://ильичвмоскве.рф/">
+	<meta property="og:image" content="https://spzw06.github.io/Lenin_in_moscow/data/assets/og-image.png">
+	<!-- Если нет og-image, создайте картинку 1200x630 с логотипом и названием -->
+
+	<!-- Twitter Card -->
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Памятники Ленину в Москве — интерактивная карта">
+	<meta name="twitter:description" content="Интерактивная карта памятников В. И. Ленину в Москве. Фильтрация, викторина.">
+	<meta name="twitter:image" content="https://spzw06.github.io/Lenin_in_moscow/data/assets/og-image.png">
 </head>
 <body>
 <div class="map-header">
     <h1>Памятники Ленину в Москве</h1>
-    <p>📌 данные взяты из 
+	<p>Интерактивная карта с фильтрацией и викториной</p>
+    <p>данные взяты из 
         <a href="https://web.archive.org/web/20250613224843/http://leninstatues.ru/moscow" target="_blank" rel="noopener noreferrer">leninstatues.ru</a>, 
         <a href="https://yandex.ru/maps/" target="_blank" rel="noopener noreferrer">yandex.ru/maps</a>, 
         <a href="https://wikimapia.org/" target="_blank" rel="noopener noreferrer">wikimapia.org</a> и 
         <a href="https://pastvu.com/" target="_blank" rel="noopener noreferrer">pastvu.com</a>
     </p>
+</div>
+<div class="seo-description" style="display: none;">
+    <h2>Полный список памятников Ленину в Москве на интерактивной карте</h2>
+    <p>На сайте представлены все известные памятники Владимиру Ильичу Ленину, установленные в Москве. Вы можете фильтровать их по статусу (существует / утрачен), типу (фигура / бюст), материалу и скульптору. Также доступна викторина для проверки знаний.</p>
 </div>
 <button id="collapse-toggle-btn" class="filter-btn collapse-float">▲ Свернуть</button>
 <div class="filter-bar">
