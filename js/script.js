@@ -1,6 +1,12 @@
 // ==================== НАСТРОЙКИ ====================
 const CSV_URL = (typeof window !== 'undefined' && window.DEF_CSV_URL) || 'data/lenin_monuments_coords.csv';
 
+let yk1 = 'ZDg1M2ZhNTAtNTYwNC00N2I';
+let yk2 = '2LThhNjktZTIzMWI5YmI3MjRi000';
+
+const YANDEX_KEY = yk1+yk2 ? atob(yk1+yk2) : null;
+if (!YANDEX_KEY) console.warn('Ключ Яндекс Tiles не найден!');
+
 let map;
 let markersCluster;
 let allMonuments = [];
@@ -92,17 +98,80 @@ function getMarkerIcon(type, condition) {
 
 // Инициализация карты
 function initMap() {
-    map = L.map('map').setView([55.7558, 37.6176], 11);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
-        subdomains: 'abcd', maxZoom: 18, minZoom: 9
-    }).addTo(map);
-    markersCluster = L.markerClusterGroup({
-        chunkedLoading: true,
-        maxClusterRadius: 35,
-        disableClusteringAtZoom: 15
-    });
-    map.addLayer(markersCluster);
+	
+    // Функция создания карты с заданной проекцией и слоем
+    function createMap(crs, tileLayerOptions) {
+        map = L.map('map', { crs: crs }).setView([55.7558, 37.6176], 11);
+        if (tileLayerOptions) {
+            const tileLayer = L.tileLayer(tileLayerOptions.url, tileLayerOptions.options);
+            tileLayer.addTo(map);
+        }
+        markersCluster = L.markerClusterGroup({
+            chunkedLoading: true,
+            maxClusterRadius: 35,
+            disableClusteringAtZoom: 15
+        });
+        map.addLayer(markersCluster);
+        // Глобальные ссылки (уже есть)
+        window.map = map;
+        window.markersCluster = markersCluster;
+    }
+
+    // Функция создания OSM-карты (используется по умолчанию или при недоступности Яндекса)
+    function createOsmMap() {
+        createMap(L.CRS.EPSG3857, {
+            url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+            options: {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
+                subdomains: 'abcd',
+                maxZoom: 18,
+                minZoom: 9
+            }
+        });
+        console.log('Используется OSM');
+    }
+
+    // Проверка Яндекс.Карт
+    function checkYandexAvailability() {
+        if (!YANDEX_KEY) {
+            createOsmMap();
+            return;
+        }
+        // Создаём тестовый запрос к одному тайлу (центр Москвы, зум 10)
+        const testUrl = `https://tiles.api-maps.yandex.ru/v1/tiles/?x=500&y=350&z=10&lang=ru_RU&l=map&apikey=${YANDEX_KEY}`;
+        console.log('Проверка доступности Яндекс.Карт...');
+        fetch(testUrl, { method: 'HEAD' })
+            .then(response => {
+                if (response.ok) {
+                    console.log('Яндекс.Карты доступны, создаём карту с Яндекс-слоем');
+                    // Создаём карту с проекцией EPSG:3395 и Яндекс-слоем
+                    createMap(L.CRS.EPSG3395, {
+                        url: `https://tiles.api-maps.yandex.ru/v1/tiles/?x={x}&y={y}&z={z}&lang=ru_RU&l=map&apikey=${YANDEX_KEY}`,
+                        options: {
+                            attribution: '&copy; <a href="https://yandex.ru/legal/maps_termsofuse" target="_blank" style="vertical-align:bottom;">Условия использования</a> &nbsp; <a href="https://yandex.ru/maps" target="_blank"><img src="//maps.yastatic.net/s3/front-maps-static/maps-front-maps/static/v57/icons/core/logo-web-ru-80x40.svg" alt="Яндекс.Карты" style="height:40px; vertical-align:bottom;"></a>',
+                            maxZoom: 19,
+                            minZoom: 9,
+                        }
+                    });
+                    // Показываем логотип Яндекса
+                    
+                } else {
+                    console.warn('Яндекс.Карты вернули ошибку, используем OSM');
+                    createOsmMap();
+					// Скрыть логотип Яндекса (если есть)
+					
+                }
+            })
+            .catch(err => {
+                console.warn('Ошибка при проверке Яндекс.Карт:', err);
+                createOsmMap();
+				// Скрыть логотип Яндекса (если есть)
+				
+            });
+    }
+
+    // Запускаем проверку
+    checkYandexAvailability();
 }
 
 function escapeHtml(str) {

@@ -3,3 +3,6 @@ js/config.js
 
 # Игнорируем папку backup и всё её содержимое
 js/backup/
+
+# Игнорируем папки созданные pyCharm
+.idea/
