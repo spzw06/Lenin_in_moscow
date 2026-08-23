@@ -776,6 +776,8 @@ body.collapsed .collapse-float:hover {
     }
 }
 
+
+
 /* ========== СТИЛИ ДЛЯ ТЕСТА (дополнения) ========== */
 
 /* Блок фидбека */
@@ -837,3 +839,21 @@ body.collapsed .collapse-float:hover {
     .quiz-photo {
         max-height: 200px;
     }
+    /* другие мобильные стили для теста при необходимости */
+}   /* <-- ЭТА СКОБКА БЫЛА ПРОПУЩЕНА */
+
+/* ========== СТИЛИ ДЛЯ ОПИСАНИЯ В ПОПАПЕ (ГЛОБАЛЬНЫЕ) ========== */
+.desc-container.expanded {
+    max-height: 12em;           /* ≈ 8 строк при line-height: 1.5 */
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 4px 6px;
+    margin-top: 4px;
+    border-radius: 3px;
+    background: #f9f9f9;
+    word-break: break-word;
+}
+
+.desc-container .desc-full {
+    white-space: normal;
+}

@@ -697,18 +697,26 @@ function initLightbox() {
         }
     }, true);
     document.addEventListener('click', (e) => {
-        const expandLink = e.target.closest('.expand-desc');
-        if (expandLink) {
-            e.preventDefault();
-            const container = expandLink.closest('.desc-container');
-            if (container) {
-                const fullText = container.getAttribute('data-full');
-                if (fullText) {
-                    container.innerHTML = `📖 ${fullText}`;
-                }
-            }
-        }
-    });
+		const expandLink = e.target.closest('.expand-desc');
+		if (expandLink) {
+			e.preventDefault();
+			const container = expandLink.closest('.desc-container');
+			if (container && !container.classList.contains('expanded')) {
+				const fullText = container.getAttribute('data-full');
+				if (fullText) {
+					// Очищаем контейнер
+					container.innerHTML = '';
+					// Создаём div для полного текста
+					const fullDiv = document.createElement('div');
+					fullDiv.className = 'desc-full';
+					fullDiv.textContent = fullText; // экранирование уже сделано
+					container.appendChild(fullDiv);
+					// Добавляем класс, который ограничит высоту
+					container.classList.add('expanded');
+				}
+			}
+		}
+	});
 }
 
 // === Функции для боковой панели ===
