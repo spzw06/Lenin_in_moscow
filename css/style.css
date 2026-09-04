@@ -481,7 +481,14 @@ body {
     color: #ffffff;
 }
 @media (max-width: 600px) {
-    .filter-btn, .extra-filters select, #toggle-list-btn {
+        /* Кнопки зума — над footer в правом нижнем углу */
+    .leaflet-bottom.leaflet-right {
+        bottom: 40px !important;
+    }
+
+
+
+.filter-btn, .extra-filters select, #toggle-list-btn {
         padding: 3px 10px;
         font-size: 0.65rem;
         height: 26px;
@@ -857,3 +864,296 @@ body.collapsed .collapse-float:hover {
 .desc-container .desc-full {
     white-space: normal;
 }
+
+/* ========== МОБИЛЬНАЯ АДАПТАЦИЯ ========== */
+@media (max-width: 600px) {
+    /* Заголовок — две строки: h1+бургер, затем подзаголовок */
+    .map-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 10px;
+        padding: 8px 12px;
+        border-bottom-width: 2px;
+    }
+    .map-header h1 {
+        font-size: 1rem;
+        margin-bottom: 0;
+        flex: 1;
+        min-width: 0;
+        order: 1;
+    }
+    .map-header p {
+        flex-basis: 100%;
+        order: 3;
+        font-size: 0.6rem;
+        line-height: 1.3;
+        opacity: 0.7;
+        margin-top: 2px;
+        display: block;
+    }
+
+    /* Бургер-кнопка внутри заголовка (не поверх!) */
+    .burger-btn {
+        position: static;
+        width: auto;
+        height: auto;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        background: transparent;
+        border: 1px solid #c12b2b;
+        color: #c12b2b;
+        box-shadow: none;
+        order: 2;
+    }
+    .burger-btn:active {
+        background: #c12b2b;
+        color: #fff;
+    }
+
+    /* Footer — компактнее, но виден */
+    .footer-note {
+        bottom: 6px;
+        left: 6px;
+        font-size: 8px;
+        padding: 2px 6px;
+        border-radius: 8px;
+        max-width: calc(100% - 12px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Кнопки зума — над footer в правом нижнем углу */
+    .leaflet-bottom.leaflet-right {
+        bottom: 40px !important;
+    }
+
+    /* Бургер-меню */
+    .burger-menu {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 260px;
+        height: 100%;
+        background: #fff;
+        z-index: 3001;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        padding: 60px 16px 16px;
+        box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+        overflow-y: auto;
+    }
+    .burger-menu.open {
+        transform: translateX(0);
+    }
+    .burger-menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 3000;
+        display: none;
+    }
+    .burger-menu-overlay.open {
+        display: block;
+    }
+    .burger-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 36px;
+        height: 36px;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #333;
+    }
+    .burger-section {
+        margin-bottom: 20px;
+    }
+    .burger-section-title {
+        font-size: 0.75rem;
+        color: #888;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+    .burger-btn-item {
+        display: block;
+        width: 100%;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        text-align: left;
+        cursor: pointer;
+        color: #333;
+        transition: all 0.2s;
+    }
+    .burger-btn-item:active {
+        background: #c12b2b;
+        color: #fff;
+        border-color: #c12b2b;
+    }
+    .burger-btn-item.active {
+        background: #c12b2b;
+        color: #fff;
+        border-color: #c12b2b;
+    }
+    .burger-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        background: #f5f5f5;
+        margin-bottom: 8px;
+    }
+
+    /* Кнопка сворачивания — скрываем */
+    .collapse-float {
+        display: none;
+    }
+
+    /* Панель фильтров скрыта — все кнопки в бургере */
+    .filter-bar {
+        display: none;
+    }
+
+    /* extra-filters скрыты */
+    .extra-filters {
+        display: none;
+    }
+
+    /* Кастомный информационный блок для мобильных */
+    .mobile-info-panel {
+        position: fixed;
+        top: 80px;
+        left: 5px;
+        right: 5px;
+        max-height: 40vh;
+        overflow-y: auto;
+        background: #fff;
+        border-radius: 0 0 16px 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        z-index: 2000;
+        padding: 16px;
+        font-size: 14px;
+        line-height: 1.5;
+        display: none;
+    }
+    .mobile-info-panel.visible {
+        display: block;
+    }
+    .mobile-info-panel .close-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 36px;
+        height: 36px;
+        background: none;
+        border: none;
+        font-size: 1.8rem;
+        cursor: pointer;
+        color: #333;
+    }
+
+    /* Bottom sheet для списка */
+    .list-sidebar {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 60vh;
+        border-radius: 20px 20px 0 0;
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+        z-index: 2500;
+    }
+    .list-sidebar:not(.hidden) {
+        transform: translateY(0);
+    }
+    .list-sidebar.hidden {
+        transform: translateY(100%);
+    }
+    .sidebar-header::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: #ccc;
+        border-radius: 2px;
+        margin: 0 auto 8px;
+        flex-shrink: 0;
+    }
+    .sidebar-header {
+        padding: 8px 20px 12px;
+        border-radius: 20px 20px 0 0;
+    }
+    .close-sidebar-btn {
+        font-size: 28px;
+        padding: 8px 12px;
+        margin: -8px -12px;
+    }
+
+    /* Галерея превью */
+    .gallery-thumb {
+        width: 60px;
+        height: 60px;
+    }
+
+    /* Светлокопия */
+    .lightbox-prev,
+    .lightbox-next {
+        font-size: 28px;
+        padding: 12px 10px;
+    }
+    .lightbox-close {
+        top: -36px;
+        font-size: 32px;
+    }
+
+    /* Квест-модалка */
+    .quiz-modal-content {
+        padding: 16px;
+        width: 95%;
+        max-height: 85vh;
+    }
+    .quiz-modal-content h2 {
+        font-size: 1.2rem;
+    }
+    .quiz-progress-segment {
+        width: 12px;
+        height: 12px;
+    }
+    .quiz-options {
+        gap: 8px;
+    }
+    .quiz-option-btn {
+        padding: 10px 6px;
+        font-size: 0.8rem;
+    }
+    .quiz-photo {
+        max-height: 200px;
+    }
+    .quiz-feedback {
+        font-size: 1.6rem;
+        padding: 12px;
+    }
+    .quiz-result-score {
+        font-size: 1.4rem;
+    }
+    .quiz-result-phrase {
+        font-size: 0.95rem;
+    }
+}
+

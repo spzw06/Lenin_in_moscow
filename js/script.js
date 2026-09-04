@@ -467,11 +467,17 @@ async function loadPhotoAttribution() {
 function originalDisplayMonuments(monuments) {
     markersCluster.clearLayers();
     markerMap.clear();
+    const isMobile = window.matchMedia('(max-width: 600px)').matches;
     for (const mon of monuments) {
         const popupHtml = generatePopupHtml(mon);
         const icon = getMarkerIcon(mon.monumentType, mon.condition);
         const marker = L.marker([mon.lat, mon.lon], { icon: icon });
-        marker.bindPopup(popupHtml);
+        // На мобильных отключаем autoPan, чтобы карта не дёргалась при открытии popup
+        if (isMobile) {
+            marker.bindPopup(popupHtml, { autoPan: false });
+        } else {
+            marker.bindPopup(popupHtml);
+        }
         markersCluster.addLayer(marker);
         markerMap.set(mon.id, marker);
     }
@@ -957,15 +963,23 @@ function highlightMonument(id) {
 
     const marker = markerMap.get(monId);
     if (marker) {
-        // Разворачиваем кластер (если нужно) и перемещаем карту
-        markersCluster.zoomToShowLayer(marker, () => {
-            // Даём время на завершение анимации (100-200 мс)
-            setTimeout(() => {
-                marker.openPopup();
-                // Принудительно обновляем кластеры, чтобы зафиксировать состояние
-                markersCluster.refreshClusters();
-            }, 150);
-        });
+        const isMobile = window.matchMedia('(max-width: 600px)').matches;
+        
+        if (isMobile) {
+            // На мобильных: кастомная панель + перемещение карты
+            if (window._mobileShowInfo) {
+                window._mobileShowInfo(monument);
+            }
+            markersCluster.refreshClusters();
+        } else {
+            // Десктоп: стандартное поведение
+            markersCluster.zoomToShowLayer(marker, () => {
+                setTimeout(() => {
+                    marker.openPopup();
+                    markersCluster.refreshClusters();
+                }, 200);
+            });
+        }
     } else {
         console.warn('Маркер не найден в markerMap');
         alert('Маркер не найден на карте, возможно, он скрыт фильтром');
@@ -1021,6 +1035,321 @@ displayMonuments = function(monuments) {
         }
     }
 };
+
+// === МОБИЛЬНАЯ ЛОГИКА ===
+function initMobileUI() {
+    const isMobile = window.matchMedia('(max-width: 600px)').matches;
+    if (!isMobile) return;
+
+    window._isMobile = true;
+
+    // Перемещаем зум-контрол в правый нижний угол
+    if (map && map.zoomControl) {
+        map.zoomControl.setPosition('bottomright');
+    }
+
+    // Исправляем viewport
+    const viewportMeta = document.querySelector('meta[name="viewport"]');
+    if (viewportMeta) {
+        viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5, viewport-fit=cover');
+    }
+
+    // --- 0. Создаём мобильную информационную панель ---
+    const mobilePanel = document.createElement('div');
+    mobilePanel.className = 'mobile-info-panel';
+    mobilePanel.innerHTML = `<button class="close-btn">&times;</button><div class="panel-content"></div>`;
+    document.body.appendChild(mobilePanel);
+    
+    mobilePanel.querySelector('.close-btn').addEventListener('click', () => {
+        mobilePanel.classList.remove('visible');
+        if (map) map.closePopup();
+    });
+
+    // Переопределяем highlightMonument для мобильных
+    window._mobileShowInfo = function(mon) {
+        const content = mobilePanel.querySelector('.panel-content');
+        let html = `<strong>${escapeHtml(mon.title)}</strong><br>`;
+        if (mon.address) html += `📍 ${escapeHtml(mon.address)}<br>`;
+        const conditionIcon = mon.condition === 'существует' ? '🔴' : (mon.condition === 'утрачен' ? '🔘' : '🔴');
+        html += `🏷 Состояние: ${conditionIcon} ${escapeHtml(mon.condition)}<br>`;
+        if (mon.sculptor) html += `🎨 Скульптор: ${escapeHtml(mon.sculptor)}<br>`;
+        if (mon.year) html += `📅 Год: ${escapeHtml(mon.year)}<br>`;
+        if (mon.material) html += `🧱 Материал: ${escapeHtml(mon.material)}<br>`;
+        if (mon.heritage) html += `🏛 Охрана: ${escapeHtml(mon.heritage)}<br>`;
+        if (mon.typeInfo) html += `🏷 Тип: ${escapeHtml(mon.typeInfo)}<br>`;
+        if (mon.description) {
+            const fullDesc = escapeHtml(mon.description);
+            if (fullDesc.length > 120) {
+                const shortDesc = fullDesc.substring(0, 120);
+                const safeFullDesc = fullDesc.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                html += `<div class="desc-container" data-full="${safeFullDesc}">📖 ${shortDesc}... <a href="#" class="expand-desc">Подробнее</a></div>`;
+            } else {
+                html += `<div>📖 ${fullDesc}</div>`;
+            }
+        }
+        html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
+        if (mon.photoUrls && mon.photoUrls.length > 0) {
+            html += `<div class="photo-gallery">`;
+            for (let i = 0; i < mon.photoUrls.length; i++) {
+                html += `<img src="${mon.photoUrls[i]}" alt="Фото" class="gallery-thumb" data-full="${mon.photoUrls[i]}" loading="lazy">`;
+            }
+            html += `</div>`;
+        }
+        content.innerHTML = html;
+        mobilePanel.classList.add('visible');
+        
+        // Перемещаем маркер вниз — на 15% от низа экрана
+        const mapHeight = map.getSize().y;
+        const offsetY = mapHeight * 0.35; // Большое смещение вниз
+        const centerPoint = map.containerPointToLatLng([
+            map.getSize().x / 2,
+            mapHeight / 2 + offsetY
+        ]);
+        map.setView([centerPoint.lat + (mon.lat - centerPoint.lat), mon.lon], map.getZoom(), { animate: true });
+    };
+
+    // --- 1. Создаём бургер-кнопку и меню ---
+    const burgerBtn = document.createElement('button');
+    burgerBtn.className = 'burger-btn';
+    burgerBtn.textContent = '☰';
+    document.querySelector('.map-header').appendChild(burgerBtn);
+
+    const burgerOverlay = document.createElement('div');
+    burgerOverlay.className = 'burger-menu-overlay';
+    document.body.appendChild(burgerOverlay);
+
+    const burgerMenu = document.createElement('div');
+    burgerMenu.className = 'burger-menu';
+    burgerMenu.innerHTML = `
+        <button class="burger-close">✕</button>
+        <div class="burger-section">
+            <div class="burger-section-title">Навигация</div>
+            <button class="burger-btn-item" id="burger-list-btn">📋 Список</button>
+            <button class="burger-btn-item" id="burger-quiz-btn">🎯 Пройти тест</button>
+        </div>
+        <div class="burger-section">
+            <div class="burger-section-title">Статус</div>
+            <button class="burger-btn-item" id="burger-filter-all">Все точки</button>
+            <button class="burger-btn-item" id="burger-filter-exists">🔴 Существует</button>
+            <button class="burger-btn-item" id="burger-filter-lost">🔘 Утрачен</button>
+            <button class="burger-btn-item" id="burger-filter-reset">⟳ Сбросить</button>
+        </div>
+        <div class="burger-section">
+            <div class="burger-section-title">Тип</div>
+            <select class="burger-select" id="burger-filter-type">
+                <option value="all">Все типы</option>
+                <option value="фигура">Фигура</option>
+                <option value="бюст">Бюст</option>
+                <option value="не указан">Не указан</option>
+            </select>
+        </div>
+        <div class="burger-section">
+            <div class="burger-section-title">Материал</div>
+            <select class="burger-select" id="burger-filter-material"><option value="all">Все материалы</option></select>
+        </div>
+        <div class="burger-section">
+            <div class="burger-section-title">Скульптор</div>
+            <select class="burger-select" id="burger-filter-sculptor"><option value="all">Все скульпторы</option></select>
+        </div>
+        <div class="burger-section">
+            <div class="burger-section-title">Фото</div>
+            <select class="burger-select" id="burger-filter-photo">
+                <option value="all">Все</option>
+                <option value="yes">Есть фото</option>
+                <option value="no">Нет фото</option>
+            </select>
+        </div>
+    `;
+    document.body.appendChild(burgerMenu);
+
+    // Открытие/закрытие бургера
+    function openBurger() {
+        burgerMenu.classList.add('open');
+        burgerOverlay.classList.add('open');
+    }
+    function closeBurger() {
+        burgerMenu.classList.remove('open');
+        burgerOverlay.classList.remove('open');
+    }
+    burgerBtn.addEventListener('click', openBurger);
+    burgerOverlay.addEventListener('click', closeBurger);
+    burgerMenu.querySelector('.burger-close').addEventListener('click', closeBurger);
+
+    // Кнопка списка
+    document.getElementById('burger-list-btn').addEventListener('click', () => {
+        closeBurger();
+        toggleSidebar(true);
+    });
+
+    // Кнопка теста
+    document.getElementById('burger-quiz-btn').addEventListener('click', () => {
+        closeBurger();
+        if (typeof window._openQuiz === 'function') window._openQuiz();
+    });
+
+    // Кнопки статуса
+    document.getElementById('burger-filter-all').addEventListener('click', () => {
+        closeBurger();
+        applyFilter('all');
+        updateBurgerActiveState();
+    });
+    document.getElementById('burger-filter-exists').addEventListener('click', () => {
+        closeBurger();
+        applyFilter('существует');
+        updateBurgerActiveState();
+    });
+    document.getElementById('burger-filter-lost').addEventListener('click', () => {
+        closeBurger();
+        applyFilter('утрачен');
+        updateBurgerActiveState();
+    });
+    document.getElementById('burger-filter-reset').addEventListener('click', () => {
+        closeBurger();
+        resetAllFilters();
+        updateBurgerActiveState();
+    });
+
+    // Обновление активного состояния кнопок статуса
+    function updateBurgerActiveState() {
+        document.querySelectorAll('[id^="burger-filter-"]').forEach(btn => btn.classList.remove('active'));
+        if (currentFilter === 'all') document.getElementById('burger-filter-all').classList.add('active');
+        else if (currentFilter === 'существует') document.getElementById('burger-filter-exists').classList.add('active');
+        else if (currentFilter === 'утрачен') document.getElementById('burger-filter-lost').classList.add('active');
+    }
+    setTimeout(updateBurgerActiveState, 500);
+
+    // Фильтры в бургере
+    const typeSelect = document.getElementById('burger-filter-type');
+    const materialSelect = document.getElementById('burger-filter-material');
+    const sculptorSelect = document.getElementById('burger-filter-sculptor');
+    const photoSelect = document.getElementById('burger-filter-photo');
+
+    // Синхронизируем селекты с основными
+    function syncBurgerSelects() {
+        if (typeSelect) typeSelect.value = filterType;
+        if (materialSelect) materialSelect.value = filterMaterial;
+        if (sculptorSelect) sculptorSelect.value = filterSculptor;
+        if (photoSelect) photoSelect.value = filterPhoto;
+    }
+    setTimeout(syncBurgerSelects, 500);
+
+    if (typeSelect) {
+        typeSelect.addEventListener('change', () => {
+            filterType = typeSelect.value;
+            const mainSelect = document.getElementById('filter-type');
+            if (mainSelect) mainSelect.value = filterType;
+            updateMapAndList();
+        });
+    }
+    if (materialSelect) {
+        materialSelect.addEventListener('change', () => {
+            filterMaterial = materialSelect.value;
+            const mainSelect = document.getElementById('filter-material');
+            if (mainSelect) mainSelect.value = filterMaterial;
+            updateMapAndList();
+        });
+    }
+    if (sculptorSelect) {
+        sculptorSelect.addEventListener('change', () => {
+            filterSculptor = sculptorSelect.value;
+            const mainSelect = document.getElementById('filter-sculptor');
+            if (mainSelect) mainSelect.value = filterSculptor;
+            updateMapAndList();
+        });
+    }
+    if (photoSelect) {
+        photoSelect.addEventListener('change', () => {
+            filterPhoto = photoSelect.value;
+            const mainSelect = document.getElementById('filter-photo');
+            if (mainSelect) mainSelect.value = filterPhoto;
+            updateMapAndList();
+        });
+    }
+
+    // Заполняем материалы и скульпторы после загрузки данных
+    const fillBurgerFilters = () => {
+        if (typeof allMonuments !== 'undefined' && allMonuments.length > 0) {
+            const materials = new Set();
+            const sculptors = new Set();
+            allMonuments.forEach(mon => {
+                if (mon.material && mon.material.trim()) materials.add(mon.material);
+                if (mon.sculptor && mon.sculptor.trim()) {
+                    mon.sculptor.split(/[,;\s]+/).forEach(n => { if (n.trim()) sculptors.add(n.trim()); });
+                }
+            });
+            if (materialSelect) {
+                materialSelect.innerHTML = '<option value="all">Все материалы</option>';
+                Array.from(materials).sort().forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    materialSelect.appendChild(opt);
+                });
+            }
+            if (sculptorSelect) {
+                sculptorSelect.innerHTML = '<option value="all">Все скульпторы</option>';
+                Array.from(sculptors).sort().forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    sculptorSelect.appendChild(opt);
+                });
+            }
+        }
+    };
+    setTimeout(fillBurgerFilters, 600);
+
+    // --- 2. Bottom sheet: свайп вниз для закрытия ---
+    const sidebar = document.getElementById('list-sidebar');
+    if (sidebar) {
+        let startY = 0, currentY = 0, isDragging = false;
+
+        sidebar.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            sidebar.style.transition = 'none';
+        }, { passive: true });
+
+        sidebar.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            currentY = e.touches[0].clientY;
+            const diff = currentY - startY;
+            if (diff > 0) sidebar.style.transform = `translateY(${diff}px)`;
+        }, { passive: true });
+
+        sidebar.addEventListener('touchend', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            sidebar.style.transition = 'transform 0.3s ease';
+            const diff = currentY - startY;
+            if (diff > 100) {
+                sidebar.classList.add('hidden');
+                sidebar.style.transform = '';
+                sidebarVisible = false;
+            } else {
+                sidebar.style.transform = '';
+            }
+            startY = 0; currentY = 0;
+        });
+    }
+
+    // --- 3. Автопрокрутка к карточке ---
+    const originalHighlight = window._highlightMonument;
+    if (originalHighlight) {
+        window._highlightMonument = function(id) {
+            originalHighlight(id);
+            setTimeout(() => {
+                const card = document.querySelector(`.list-card[data-id="${id}"]`);
+                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        };
+    }
+}
+
+// Запуск мобильной логики после инициализации
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initMobileUI, 100);
+});
 
 // Запуск
 init();
