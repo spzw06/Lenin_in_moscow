@@ -1062,6 +1062,8 @@ function initMobileUI() {
     
     mobilePanel.querySelector('.close-btn').addEventListener('click', () => {
         mobilePanel.classList.remove('visible');
+        const arrow = document.getElementById('popup-arrow');
+        if (arrow) arrow.style.display = 'none';
         if (map) map.closePopup();
     });
 
@@ -1089,23 +1091,51 @@ function initMobileUI() {
         }
         html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
         if (mon.photoUrls && mon.photoUrls.length > 0) {
-            html += `<div class="photo-gallery">`;
+            html += `<div class="popup-container"><div class="photo-gallery">`;
             for (let i = 0; i < mon.photoUrls.length; i++) {
                 html += `<img src="${mon.photoUrls[i]}" alt="Фото" class="gallery-thumb" data-full="${mon.photoUrls[i]}" loading="lazy">`;
             }
-            html += `</div>`;
+            html += `</div></div>`;
         }
         content.innerHTML = html;
         mobilePanel.classList.add('visible');
         
-        // Перемещаем маркер вниз — на 15% от низа экрана
+        // Создаём стрелочку над маркером
+        let arrow = document.getElementById('popup-arrow');
+        if (!arrow) {
+            arrow = document.createElement('div');
+            arrow.id = 'popup-arrow';
+            document.body.appendChild(arrow);
+        }
+        arrow.style.display = 'block';
+        
+        // Перемещаем маркер вниз — на 30% от низа экрана
         const mapHeight = map.getSize().y;
-        const offsetY = mapHeight * 0.35; // Большое смещение вниз
-        const centerPoint = map.containerPointToLatLng([
-            map.getSize().x / 2,
-            mapHeight / 2 + offsetY
-        ]);
-        map.setView([centerPoint.lat + (mon.lat - centerPoint.lat), mon.lon], map.getZoom(), { animate: true });
+        const shiftUp = mapHeight * 0.3;
+        const topLeft = map.containerPointToLatLng([0, 0]);
+        const bottomLeft = map.containerPointToLatLng([0, mapHeight]);
+        const latPerPixel = (topLeft.lat - bottomLeft.lat) / mapHeight;
+        const newCenterLat = mon.lat + shiftUp * latPerPixel;
+        map.setView([newCenterLat, mon.lon], map.getZoom(), { animate: false });
+        
+        // Позиционируем popup — вытянут от 20% верха до маркера
+        setTimeout(() => {
+            const markerPoint = map.latLngToContainerPoint([mon.lat, mon.lon]);
+            const mapHeight = map.getSize().y;
+            const topLimit = mapHeight * 0.2; // 20% от верха
+            const bottomLimit = markerPoint.y - 20; // 20px отступ от маркера
+            
+            // Высота панели — от верха до маркера
+            const panelHeight = bottomLimit - topLimit;
+            
+            mobilePanel.style.top = topLimit + 'px';
+            mobilePanel.style.height = panelHeight + 'px';
+            mobilePanel.style.bottom = 'auto';
+            
+            // Позиционируем стрелочку над маркером
+            arrow.style.top = (markerPoint.y - 14) + 'px';
+            arrow.style.left = (markerPoint.x - 14) + 'px';
+        }, 50);
     };
 
     // --- 1. Создаём бургер-кнопку и меню ---
