@@ -332,7 +332,7 @@ function processDataFromCSV(data) {
         alert('⚠️ Не найдено точек с координатами. Проверьте консоль для деталей.');
         return;
     }
-    populateFilterOptions();   // заполняем выпадающие списки (добавить эту строку)
+    populateFilterOptions();   // заполняем выпадающие списки
     updateMapAndList();        // обновляем карту и список
 	// Если был отложенный запрос на памятник – выполняем
 	console.log('📌 processDataFromCSV: pendingMonumentId =', pendingMonumentId);
@@ -472,17 +472,28 @@ function originalDisplayMonuments(monuments) {
         const popupHtml = generatePopupHtml(mon);
         const icon = getMarkerIcon(mon.monumentType, mon.condition);
         const marker = L.marker([mon.lat, mon.lon], { icon: icon });
-        // На мобильных отключаем autoPan, чтобы карта не дёргалась при открытии popup
-        if (isMobile) {
-            marker.bindPopup(popupHtml, { autoPan: false });
-        } else {
+        // На десктопе — стандартный popup с контентом
+        // На мобильных — popup не нужен, контент через _mobileShowInfo в click handler
+        if (!isMobile) {
             marker.bindPopup(popupHtml);
         }
         markersCluster.addLayer(marker);
         markerMap.set(mon.id, marker);
+        
+        // Обработчик клика по маркеру
+        marker.on('click', function(e) {
+            if (window.router) {
+                window.router.goToMonument(mon.id);
+            } else {
+                highlightMonument(mon.id);
+            }
+        });
     }
     updateFilterCounter();
 }
+
+// displayMonuments — публичное имя для оригинальной функции
+displayMonuments = originalDisplayMonuments;
 
 // Генерация попапа
 function generatePopupHtml(mon) {
@@ -929,13 +940,14 @@ async function init() {
 	// Кнопка сворачивания/разворачивания
 	const collapseBtn = document.getElementById('collapse-toggle-btn');
 	if (collapseBtn) {
+		collapseBtn.textContent = '';
 		collapseBtn.addEventListener('click', () => {
 			document.body.classList.toggle('collapsed');
-			collapseBtn.textContent = document.body.classList.contains('collapsed') ? '▼ Развернуть' : '▲ Свернуть';
 		});
+		
+
 	}
-	
-    console.log('init: завершено');
+console.log('init: завершено');
 }
 
 window.parseCSV = parseCSV;
@@ -1011,30 +1023,7 @@ function showMainView() {
 
 window._showMainView = showMainView;
 
-// Дополнительно: функция для обработки клика по маркеру (будет использоваться в displayMonuments)
-// Для этого модифицируем создание маркеров в displayMonuments
-// Вместо прямой привязки popup, добавляем обработчик click, который меняет хеш
-// Но поскольку у нас уже есть привязка через bindPopup, нужно аккуратно совместить
-
-// Переопределяем displayMonuments, чтобы добавить обработчик клика
-// Сохраним оригинальную функцию и заменим её обёрткой
-
-displayMonuments = function(monuments) {
-    originalDisplayMonuments(monuments);
-    for (const mon of monuments) {
-        const marker = markerMap.get(mon.id);
-        if (marker) {
-            marker.off('click');
-            marker.on('click', function(e) {
-                if (window.router) {
-                    window.router.goToMonument(mon.id);
-                } else {
-                    highlightMonument(mon.id);
-                }
-            });
-        }
-    }
-};
+// Обработчик клика по маркеру — встроен в originalDisplayMonuments
 
 // === МОБИЛЬНАЯ ЛОГИКА ===
 function initMobileUI() {
