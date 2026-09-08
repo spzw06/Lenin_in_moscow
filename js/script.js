@@ -1,11 +1,8 @@
 // ==================== НАСТРОЙКИ ====================
 const CSV_URL = (typeof window !== 'undefined' && window.DEF_CSV_URL) || 'data/lenin_monuments_coords.csv';
 
-let yk1 = 'ZDg1M2ZhNTAtNTYwNC00N2I';
-let yk2 = '2LThhNjktZTIzMWI5YmI3MjRi000';
-
-const YANDEX_KEY = yk1+yk2 ? atob(yk1+yk2) : null;
-if (!YANDEX_KEY) console.warn('Ключ Яндекс Tiles не найден!');
+// Яндекс-слой отключён: ключ API отсутствовал/был невалиден,
+// карта всегда рисуется на OSM/CartoDB (см. createOsmMap)
 
 let map;
 let markersCluster;
@@ -102,6 +99,10 @@ function initMap() {
     // Функция создания карты с заданной проекцией и слоем
     function createMap(crs, tileLayerOptions) {
         map = L.map('map', { crs: crs }).setView([55.7558, 37.6176], 11);
+        // Зум-контрол — в правый нижний угол во всех версиях (над атрибуцией)
+        if (map.zoomControl) {
+            map.zoomControl.setPosition('bottomright');
+        }
         if (tileLayerOptions) {
             const tileLayer = L.tileLayer(tileLayerOptions.url, tileLayerOptions.options);
             tileLayer.addTo(map);
@@ -131,47 +132,8 @@ function initMap() {
         console.log('Используется OSM');
     }
 
-    // Проверка Яндекс.Карт
-    function checkYandexAvailability() {
-        if (!YANDEX_KEY) {
-            createOsmMap();
-            return;
-        }
-        // Создаём тестовый запрос к одному тайлу (центр Москвы, зум 10)
-        const testUrl = `https://tiles.api-maps.yandex.ru/v1/tiles/?x=500&y=350&z=10&lang=ru_RU&l=map&apikey=${YANDEX_KEY}`;
-        console.log('Проверка доступности Яндекс.Карт...');
-        fetch(testUrl, { method: 'HEAD' })
-            .then(response => {
-                if (response.ok) {
-                    console.log('Яндекс.Карты доступны, создаём карту с Яндекс-слоем');
-                    // Создаём карту с проекцией EPSG:3395 и Яндекс-слоем
-                    createMap(L.CRS.EPSG3395, {
-                        url: `https://tiles.api-maps.yandex.ru/v1/tiles/?x={x}&y={y}&z={z}&lang=ru_RU&l=map&apikey=${YANDEX_KEY}`,
-                        options: {
-                            attribution: '&copy; <a href="https://yandex.ru/legal/maps_termsofuse" target="_blank" style="vertical-align:bottom;">Условия использования</a> &nbsp; <a href="https://yandex.ru/maps" target="_blank"><img src="//maps.yastatic.net/s3/front-maps-static/maps-front-maps/static/v57/icons/core/logo-web-ru-80x40.svg" alt="Яндекс.Карты" style="height:40px; vertical-align:bottom;"></a>',
-                            maxZoom: 19,
-                            minZoom: 9,
-                        }
-                    });
-                    // Показываем логотип Яндекса
-                    
-                } else {
-                    console.warn('Яндекс.Карты вернули ошибку, используем OSM');
-                    createOsmMap();
-					// Скрыть логотип Яндекса (если есть)
-					
-                }
-            })
-            .catch(err => {
-                console.warn('Ошибка при проверке Яндекс.Карт:', err);
-                createOsmMap();
-				// Скрыть логотип Яндекса (если есть)
-				
-            });
-    }
-
-    // Запускаем проверку
-    checkYandexAvailability();
+    // Карта всегда на OSM/CartoDB (Яндекс-ключ невалиден)
+    createOsmMap();
 }
 
 function escapeHtml(str) {
@@ -517,7 +479,7 @@ function generatePopupHtml(mon) {
             html += `<div>📖 ${fullDesc}</div>`;
         }
     }
-    html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
+    html += `<i class="coords-link" data-lat="${mon.lat}" data-lon="${mon.lon}" style="cursor:pointer;color:#c12b2b;text-decoration:underline;">Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
     if (mon.photoUrls && mon.photoUrls.length > 0) {
         html += `<div class="photo-gallery">`;
         for (let i = 0; i < mon.photoUrls.length; i++) {
@@ -896,6 +858,10 @@ async function init() {
     if (toggleBtn) {
         toggleBtn.addEventListener('click', () => toggleSidebar(true));
     }
+    const toggleBtnCollapsed = document.getElementById('toggle-list-btn-collapsed');
+    if (toggleBtnCollapsed) {
+        toggleBtnCollapsed.addEventListener('click', () => toggleSidebar(true));
+    }
     const closeBtn = document.getElementById('close-sidebar-btn');
     if (closeBtn) {
         closeBtn.addEventListener('click', () => toggleSidebar(false));
@@ -947,6 +913,31 @@ async function init() {
 		
 
 	}
+
+    // Обработчик клика по координатам в попапе
+    document.addEventListener('click', function(e) {
+        const coordsLink = e.target.closest('.coords-link');
+        if (coordsLink) {
+            const lat = parseFloat(coordsLink.dataset.lat);
+            const lon = parseFloat(coordsLink.dataset.lon);
+            if (map && !isNaN(lat) && !isNaN(lon)) {
+                const isMobile = window.matchMedia('(max-width: 600px)').matches;
+                if (isMobile) {
+                    // Мобильный: маркер на 15% от нижнего края экрана
+                    const mapHeight = map.getSize().y;
+                    const shiftUp = mapHeight * 0.35;
+                    const topLeft = map.containerPointToLatLng([0, 0]);
+                    const bottomLeft = map.containerPointToLatLng([0, mapHeight]);
+                    const latPerPixel = (topLeft.lat - bottomLeft.lat) / mapHeight;
+                    const newCenterLat = lat + shiftUp * latPerPixel;
+                    map.setView([newCenterLat, lon], map.getZoom(), { animate: true });
+                } else {
+                    // Десктоп: центрировать маркер в центре карты
+                    map.setView([lat, lon], map.getZoom(), { animate: true });
+                }
+            }
+        }
+    });
 console.log('init: завершено');
 }
 
@@ -1032,10 +1023,6 @@ function initMobileUI() {
 
     window._isMobile = true;
 
-    // Перемещаем зум-контрол в правый нижний угол
-    if (map && map.zoomControl) {
-        map.zoomControl.setPosition('bottomright');
-    }
 
     // Исправляем viewport
     const viewportMeta = document.querySelector('meta[name="viewport"]');
@@ -1078,7 +1065,7 @@ function initMobileUI() {
                 html += `<div>📖 ${fullDesc}</div>`;
             }
         }
-        html += `<i>Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
+        html += `<i class="coords-link" data-lat="${mon.lat}" data-lon="${mon.lon}" style="cursor:pointer;color:#c12b2b;text-decoration:underline;">Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
         if (mon.photoUrls && mon.photoUrls.length > 0) {
             html += `<div class="popup-container"><div class="photo-gallery">`;
             for (let i = 0; i < mon.photoUrls.length; i++) {
@@ -1098,33 +1085,41 @@ function initMobileUI() {
         }
         arrow.style.display = 'block';
         
-        // Перемещаем маркер вниз — на 30% от низа экрана
+        // Перемещаем карту так, чтобы маркер оказался внизу экрана,
+        // на 15% от нижнего края (т.е. на 85% высоты карты)
         const mapHeight = map.getSize().y;
-        const shiftUp = mapHeight * 0.3;
+        const shiftUp = mapHeight * 0.35; // 0.5 + 0.35 = 0.85 высоты => 15% от низа
         const topLeft = map.containerPointToLatLng([0, 0]);
         const bottomLeft = map.containerPointToLatLng([0, mapHeight]);
         const latPerPixel = (topLeft.lat - bottomLeft.lat) / mapHeight;
         const newCenterLat = mon.lat + shiftUp * latPerPixel;
         map.setView([newCenterLat, mon.lon], map.getZoom(), { animate: false });
         
-        // Позиционируем popup — вытянут от 20% верха до маркера
-        setTimeout(() => {
+        // Панель прижимаем низом к стрелке, стрелка — на 20px над иконкой.
+        // Все координаты — экранные (учитываем смещение карты относительно viewport)
+        requestAnimationFrame(() => {
             const markerPoint = map.latLngToContainerPoint([mon.lat, mon.lon]);
-            const mapHeight = map.getSize().y;
-            const topLimit = mapHeight * 0.2; // 20% от верха
-            const bottomLimit = markerPoint.y - 20; // 20px отступ от маркера
-            
-            // Высота панели — от верха до маркера
-            const panelHeight = bottomLimit - topLimit;
-            
-            mobilePanel.style.top = topLimit + 'px';
-            mobilePanel.style.height = panelHeight + 'px';
-            mobilePanel.style.bottom = 'auto';
-            
-            // Позиционируем стрелочку над маркером
-            arrow.style.top = (markerPoint.y - 14) + 'px';
-            arrow.style.left = (markerPoint.x - 14) + 'px';
-        }, 50);
+            const mapRect = map.getContainer().getBoundingClientRect();
+            const markerViewY = mapRect.top + markerPoint.y; // экранный низ маркера
+            const markerViewX = mapRect.left + markerPoint.x;
+
+            const ICON_H = 50;        // высота SVG-иконки маркера
+            const ARROW_GAP = 20;     // зазор между остриём стрелки и иконкой
+            const ARROW_H = 14;       // высота стрелки (треугольник)
+
+            // Остриё стрелки — на 20px выше верха иконки
+            const arrowTipY = markerViewY - ICON_H - ARROW_GAP;
+
+            // Стрелка прикреплена к нижней границе панели
+            arrow.style.top = (arrowTipY - ARROW_H) + 'px';
+            arrow.style.left = (markerViewX - 14) + 'px';
+
+            // Панель: нижняя граница у стрелки, верх — по контенту
+            const panelBottom = arrowTipY - ARROW_H;
+            mobilePanel.style.top = 'auto';
+            mobilePanel.style.height = 'auto';
+            mobilePanel.style.bottom = (window.innerHeight - panelBottom) + 'px';
+        });
     };
 
     // --- 1. Создаём бургер-кнопку и меню ---

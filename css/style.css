@@ -30,9 +30,10 @@ body {
     border-bottom: 3px solid #c12b2b;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     padding: 12px 20px;
-    text-align: center;
     font-family: 'Russo One', 'Segoe UI', sans-serif;
     letter-spacing: 0.5px;
+    position: relative;
+    text-align: center;
 }
 .map-header h1 {
     font-size: 1.6rem;
@@ -68,6 +69,20 @@ body {
     font-weight: bold;          /* ссылки тоже жирные */
     color: #f39c12;             /* цвет уже задан в инлайне, но можно продублировать */
     text-decoration: none;      /* чтобы не было подчёркивания, если нужно */
+}
+/* Альбомная ориентация (поворот телефона): плашка остаётся компактной,
+   не растягивается на весь экран, длинный текст обрезается */
+@media (max-height: 500px) {
+    .footer-note {
+        max-width: min(45vw, 340px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 9px;
+        padding: 2px 8px;
+        bottom: 6px;
+        left: 6px;
+    }
 }
 .loading-overlay {
     position: absolute;
@@ -412,7 +427,7 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 12px;      /* было 8px 16px */
+    padding: 12px 12px;
     background: #fafaf8;
     border-bottom: 2px solid #c12b2b;
     flex-wrap: wrap;
@@ -514,22 +529,24 @@ body {
 
 
 /* Сворачивание панелей */
-body.collapsed .map-header,
+body.collapsed .map-header h1,
+body.collapsed .map-header p,
+body.collapsed .filter-bar,
 body.collapsed .extra-filters {
     display: none;
 }
-body.collapsed .filter-bar .filter-btn:not(#toggle-list-btn) {
-    display: none;
-}
-body.collapsed .filter-bar {
-    justify-content: flex-start;
+body.collapsed .map-header {
+    padding: 6px 20px;
+    box-shadow: none;
+    min-height: 48px;
+    display: block;
+    z-index: 1100;   /* чтобы кнопки в свёрнутой шапке были поверх карты */
 }
 /* Плавающая кнопка сворачивания в левом верхнем углу */
 .collapse-float {
-    position: fixed;
+    position: absolute;
     top: 12px;
     left: 12px;
-    z-index: 1100;
     background: #ffffff;
     border: 1px solid #c12b2b;
     color: #c12b2b;
@@ -544,7 +561,6 @@ body.collapsed .filter-bar {
     align-items: center;
     justify-content: center;
     font-family: inherit;
-    opacity: 0.9;
     gap: 4px;
 }
 .collapse-float::before {
@@ -557,7 +573,7 @@ body.collapsed .filter-bar {
     transform: rotate(-135deg);
     transition: transform 0.2s ease;
 }
-body.collapsed .collapse-float::before {
+body.collapsed .filter-btn.collapse-float::before {
     transform: rotate(45deg);
 }
 .collapse-float:hover {
@@ -566,24 +582,56 @@ body.collapsed .collapse-float::before {
     opacity: 1;
 }
 /* При свернутом состоянии кнопка остаётся красной с белым текстом */
-body.collapsed .collapse-float {
+body.collapsed .filter-btn.collapse-float {
     background: #c12b2b;
     color: #ffffff;
     border-color: #c12b2b;
     opacity: 1;
 }
-body.collapsed .collapse-float:hover {
+body.collapsed .filter-btn.collapse-float:hover {
     background: #a12323;
+}
+/* В развёрнутом состоянии кнопка всегда белая (в т.ч. при наведении
+   или «залипшем» hover после тапа на мобильных) */
+body:not(.collapsed) .filter-btn.collapse-float {
+    background: #ffffff;
+    color: #c12b2b;
+    border-color: #c12b2b;
+}
+
+/* Скрытая копия кнопки Список в заголовке (для collapsed) */
+#toggle-list-btn-collapsed {
+    display: none;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #ffffff;
+    border: 1px solid #c12b2b;
+    color: #c12b2b;
+    padding: 4px 14px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 500;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    gap: 4px;
+}
+/* Кнопка «Список» в свёрнутой шапке — только в полной (десктопной) версии */
+@media (min-width: 601px) {
+    body.collapsed #toggle-list-btn-collapsed {
+        display: inline-flex;
+    }
+}
+#toggle-list-btn-collapsed:hover {
+    background: #c12b2b;
+    color: #ffffff;
 }
 
 
-    /* Мобильный collapse-float — в левом верхнем углу */
-    .collapse-float {
-        top: 8px;
-        left: 8px;
-        height: 26px;
-        font-size: 0.65rem;
-    }
+
 /* ... все существующие стили остаются без изменений ... */
 
 /* ========== СТИЛИ ДЛЯ ТЕСТА ========== */
@@ -896,14 +944,32 @@ body.collapsed .collapse-float:hover {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
+        justify-content: center;
+        gap: 8px;
+        position: relative;
+    }
+    .map-header .collapse-float {
+        position: static;
+        top: auto;
+        left: auto;
+        order: -1;
+        flex-shrink: 0;
+    }
+    /* Свёрнутое состояние на мобильной: кнопки остаются на своих местах
+       (сворачивание — слева, бургер — справа), а не съезжают в центр */
+    body.collapsed .map-header {
+        display: flex;
         justify-content: space-between;
-        gap: 10px;
+        align-items: center;
+        padding: 6px 12px;
     }
     .map-header h1 {
         font-size: 1rem;
         margin-bottom: 0;
         flex: 1;
         min-width: 0;
+        order: 1;
+        text-align: center;
     }
     .map-header p {
         display: block;
@@ -912,7 +978,11 @@ body.collapsed .collapse-float:hover {
         opacity: 0.7;
         flex-basis: 100%;
         order: 3;
-        margin-top: 2px;
+        margin-top: 0;
+        text-align: center;
+    }
+    .burger-btn {
+        order: 2;
     }
 
     /* Бургер-кнопка внутри заголовка (не поверх!) */
@@ -965,7 +1035,7 @@ body.collapsed .collapse-float:hover {
         z-index: 3001;
         transform: translateX(100%);
         transition: transform 0.3s ease;
-        padding: 60px 16px 16px;
+        padding: 60px 16px 10px;
         box-shadow: -4px 0 20px rgba(0,0,0,0.3);
         overflow-y: auto;
     }
@@ -998,28 +1068,31 @@ body.collapsed .collapse-float:hover {
         color: #333;
     }
     .burger-section {
-        margin-bottom: 20px;
+        margin-bottom: 10px;
     }
     .burger-section-title {
         font-size: 0.75rem;
         color: #888;
         text-transform: uppercase;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
         font-weight: 600;
     }
     .burger-btn-item {
         display: block;
         width: 100%;
-        padding: 12px 16px;
-        margin-bottom: 8px;
+        padding: 4px 14px;
+        margin-bottom: 2px;
         background: #f5f5f5;
         border: 1px solid #ddd;
-        border-radius: 10px;
-        font-size: 0.9rem;
+        border-radius: 30px;
+        font-size: 0.7rem;
         text-align: left;
         cursor: pointer;
         color: #333;
         transition: all 0.2s;
+        height: 28px;
+        font-family: inherit;
+        font-weight: 500;
     }
     .burger-btn-item:active {
         background: #c12b2b;
@@ -1032,13 +1105,19 @@ body.collapsed .collapse-float:hover {
         border-color: #c12b2b;
     }
     .burger-select {
+        display: block;
         width: 100%;
-        padding: 10px 12px;
+        height: 28px;
+        padding: 0 12px;
         border: 1px solid #ddd;
-        border-radius: 10px;
-        font-size: 0.9rem;
+        border-radius: 30px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: #333;
         background: #f5f5f5;
-        margin-bottom: 8px;
+        margin-bottom: 2px;
+        font-family: inherit;
+        box-sizing: border-box;
     }
 
     /* Панель фильтров скрыта — все кнопки в бургере */
@@ -1160,20 +1239,21 @@ body.collapsed .collapse-float:hover {
 /* ========== МОБИЛЬНАЯ ИНФО-ПАНЕЛЬ ========== */
 .mobile-info-panel {
     position: fixed;
-    left: 5px;
-    right: 5px;
-    top: 100px;
-    bottom: auto;
-    max-height: 50vh;
-    min-height: 200px;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 90px;
+    height: auto;
+    max-height: 70vh;
+    min-height: 0;
     overflow-y: auto;
     background: #fff;
-    border-radius: 0 0 16px 16px;
+    border-radius: 0;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     z-index: 2000;
     padding: 16px;
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.45;
     display: none;
 }
 .mobile-info-panel.visible {
