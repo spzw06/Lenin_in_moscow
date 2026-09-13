@@ -99,21 +99,40 @@ function initMap() {
     // Функция создания карты с заданной проекцией и слоем
     function createMap(crs, tileLayerOptions) {
         map = L.map('map', { crs: crs }).setView([55.7558, 37.6176], 11);
-        // Зум-контрол — в правый нижний угол во всех версиях (над атрибуцией)
+        
+        // 1. Перемещаем зум-контрол в левый нижний угол
         if (map.zoomControl) {
-            map.zoomControl.setPosition('bottomright');
+            map.zoomControl.setPosition('bottomleft');
         }
+        
         if (tileLayerOptions) {
             const tileLayer = L.tileLayer(tileLayerOptions.url, tileLayerOptions.options);
             tileLayer.addTo(map);
         }
+        
         markersCluster = L.markerClusterGroup({
             chunkedLoading: true,
             maxClusterRadius: 35,
             disableClusteringAtZoom: 15
         });
         map.addLayer(markersCluster);
-        // Глобальные ссылки (уже есть)
+        
+        // 2. Добавляем кастомную кнопку геолокации в правый нижний угол
+        const locateControl = L.control({ position: 'bottomright' });
+        locateControl.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'leaflet-bar locate-btn');
+            div.innerHTML = '📍';
+            div.title = 'Найти ближайшие памятники';
+            div.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                locateUser();
+            };
+            return div;
+        };
+        locateControl.addTo(map);
+
+        // Глобальные ссылки
         window.map = map;
         window.markersCluster = markersCluster;
     }
@@ -1365,6 +1384,100 @@ function initMobileUI() {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(initMobileUI, 100);
 });
+
+// === ГЕОЛОКАЦИЯ И ПОИСК БЛИЖАЙШИХ ПАМЯТНИКОВ ===
+
+function locateUser() {
+    const btn = document.querySelector('.locate-btn');
+    if (!navigator.geolocation) {
+        alert('Геолокация не поддерживается вашим браузером');
+        return;
+    }
+
+    // Меняем иконку на время загрузки
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳';
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            btn.innerHTML = originalText;
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
+
+            // Удаляем старый маркер пользователя, если он есть
+            if (window.userMarker) {
+                map.removeLayer(window.userMarker);
+            }
+
+            // Создаем маркер пользователя (синяя точка)
+            const userIcon = L.divIcon({
+                className: 'user-location-marker',
+                html: '<div style="background: #007bff; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+
+            window.userMarker = L.marker([userLat, userLon], { icon: userIcon }).addTo(map);
+
+            // Ищем 3 ближайших памятника
+            const nearest = findNearestMonuments(userLat, userLon, 3);
+
+            // Формируем HTML для попапа
+            let popupHtml = `<div class="nearest-popup"><strong>Ближайшие памятники:</strong><ul>`;
+            if (nearest.length === 0) {
+                popupHtml += `<li>Памятники не найдены</li>`;
+            } else {
+                nearest.forEach(mon => {
+                    const distText = mon.distance < 1000 
+                        ? `${Math.round(mon.distance)} м` 
+                        : `${(mon.distance / 1000).toFixed(1)} км`;
+                    popupHtml += `<li><a href="#/monument/${mon.id}">${escapeHtml(mon.title)}</a> — ${distText}</li>`;
+                });
+            }
+            popupHtml += `</ul></div>`;
+
+            window.userMarker.bindPopup(popupHtml, { 
+				maxWidth: 500, 
+				className: 'nearest-popup-wrapper' // Добавляем класс для стилизации
+			}).openPopup();
+
+            // Центрируем карту на пользователе
+            map.setView([userLat, userLon], 14);
+        },
+        (error) => {
+            btn.innerHTML = originalText;
+            console.error('Ошибка геолокации:', error);
+            alert('Не удалось определить местоположение. Убедитесь, что разрешен доступ к геолокации в браузере.');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+// Формула гаверсинуса для расчета расстояния между координатами
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // Радиус Земли в метрах
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+// Поиск ближайших памятников
+function findNearestMonuments(userLat, userLon, count = 3) {
+    if (!allMonuments || allMonuments.length === 0) return [];
+    
+    const monumentsWithDist = allMonuments.map(mon => {
+        const dist = getDistanceFromLatLonInMeters(userLat, userLon, mon.lat, mon.lon);
+        return { ...mon, distance: dist };
+    });
+    
+    monumentsWithDist.sort((a, b) => a.distance - b.distance);
+    return monumentsWithDist.slice(0, count);
+}
 
 // Запуск
 init();
