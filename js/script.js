@@ -121,15 +121,16 @@ function initMap() {
     // Функция создания OSM-карты (используется по умолчанию или при недоступности Яндекса)
     function createOsmMap() {
         createMap(L.CRS.EPSG3857, {
-            url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+            // URL из письма CARTO со стилем Voyager и вашим ключом
+            url: 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_3iyp_1_c1296302181e7d584ac0a479',
             options: {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
-                subdomains: 'abcd',
-                maxZoom: 18,
+                // Важно сохранить атрибуцию, это требование бесплатного тарифа
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                maxZoom: 18, // В письме указан maxZoom 20
                 minZoom: 9
             }
         });
-        console.log('Используется OSM');
+        console.log('Используется CARTO Voyager с API-ключом');
     }
 
     // Карта всегда на OSM/CartoDB (Яндекс-ключ невалиден)
