@@ -1231,53 +1231,6 @@ body:not(.collapsed) .filter-btn.collapse-float {
     }
 }
 
-/* ========== МОБИЛЬНАЯ ИНФО-ПАНЕЛЬ ========== */
-.mobile-info-panel {
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 90px;
-    height: auto;
-    max-height: 70vh;
-    min-height: 0;
-    overflow-y: auto;
-    background: #fff;
-    border-radius: 0;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    z-index: 2000;
-    padding: 16px;
-    font-size: 13px;
-    line-height: 1.45;
-    display: none;
-}
-.mobile-info-panel.visible {
-    display: block;
-}
-.mobile-info-panel .close-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 36px;
-    height: 36px;
-    background: none;
-    border: none;
-    font-size: 1.8rem;
-    cursor: pointer;
-    color: #333;
-}
-#popup-arrow {
-    position: fixed;
-    width: 0;
-    height: 0;
-    border-left: 14px solid transparent;
-    border-right: 14px solid transparent;
-    border-top: 14px solid #fff;
-    z-index: 2001;
-    pointer-events: none;
-    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
-}
-
 /* Кнопка геолокации */
 .locate-btn {
     background-color: white;
@@ -1382,5 +1335,17 @@ body:not(.collapsed) .filter-btn.collapse-float {
     .leaflet-bottom.leaflet-left,
     .leaflet-bottom.leaflet-right {
         bottom: 25px !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .monument-popup-wrapper .leaflet-popup-content {
+        width: 80vw !important;
+        max-height: 55vh;              /* ограничение высоты */
+        overflow-y: auto;               /* прокрутка длинного контента */
+        margin: 10px 15px !important;
+    }
+    .monument-popup-wrapper .leaflet-popup-content-wrapper {
+        border-radius: 16px;
     }
 }

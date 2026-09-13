@@ -449,16 +449,19 @@ async function loadPhotoAttribution() {
 function originalDisplayMonuments(monuments) {
     markersCluster.clearLayers();
     markerMap.clear();
-    const isMobile = window.matchMedia('(max-width: 600px)').matches;
+    //const isMobile = window.matchMedia('(max-width: 600px)').matches;
     for (const mon of monuments) {
         const popupHtml = generatePopupHtml(mon);
         const icon = getMarkerIcon(mon.monumentType, mon.condition);
         const marker = L.marker([mon.lat, mon.lon], { icon: icon });
         // На десктопе — стандартный popup с контентом
         // На мобильных — popup не нужен, контент через _mobileShowInfo в click handler
-        if (!isMobile) {
-            marker.bindPopup(popupHtml);
-        }
+        marker.bindPopup(popupHtml, {
+			maxWidth: 400,
+			className: 'monument-popup-wrapper',
+			autoPan: true,
+			autoPanPadding: [20, 100]  // 100px снизу — чтобы не заезжал под футер
+		});
         markersCluster.addLayer(marker);
         markerMap.set(mon.id, marker);
         
@@ -984,7 +987,7 @@ function highlightMonument(id) {
         return;
     }
 
-    const marker = markerMap.get(monId);
+        const marker = markerMap.get(monId);
     if (marker) {
         const isMobile = window.matchMedia('(max-width: 600px)').matches;
         
@@ -995,13 +998,22 @@ function highlightMonument(id) {
             }
             markersCluster.refreshClusters();
         } else {
-            // Десктоп: стандартное поведение
-            markersCluster.zoomToShowLayer(marker, () => {
-                setTimeout(() => {
-                    marker.openPopup();
-                    markersCluster.refreshClusters();
-                }, 200);
-            });
+            // Десктоп
+            if (marker.isPopupOpen()) {
+                // Попап уже открыт (только что кликнули по маркеру).
+                // Не трогаем карту, чтобы не было конфликта с autoPan
+                // и не закрывался попап. Просто обновляем кластеры.
+                markersCluster.refreshClusters();
+            } else {
+                // Переход по ссылке / из списка / из попапа ближайших —
+                // сами управляем показом маркера и открытием попапа
+                markersCluster.zoomToShowLayer(marker, () => {
+                    setTimeout(() => {
+                        marker.openPopup();
+                        markersCluster.refreshClusters();
+                    }, 200);
+                });
+            }
         }
     } else {
         console.warn('Маркер не найден в markerMap');
@@ -1043,104 +1055,11 @@ function initMobileUI() {
 
     window._isMobile = true;
 
-
     // Исправляем viewport
     const viewportMeta = document.querySelector('meta[name="viewport"]');
     if (viewportMeta) {
         viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5, viewport-fit=cover');
     }
-
-    // --- 0. Создаём мобильную информационную панель ---
-    const mobilePanel = document.createElement('div');
-    mobilePanel.className = 'mobile-info-panel';
-    mobilePanel.innerHTML = `<button class="close-btn">&times;</button><div class="panel-content"></div>`;
-    document.body.appendChild(mobilePanel);
-    
-    mobilePanel.querySelector('.close-btn').addEventListener('click', () => {
-        mobilePanel.classList.remove('visible');
-        const arrow = document.getElementById('popup-arrow');
-        if (arrow) arrow.style.display = 'none';
-        if (map) map.closePopup();
-    });
-
-    // Переопределяем highlightMonument для мобильных
-    window._mobileShowInfo = function(mon) {
-        const content = mobilePanel.querySelector('.panel-content');
-        let html = `<strong>${escapeHtml(mon.title)}</strong><br>`;
-        if (mon.address) html += `📍 ${escapeHtml(mon.address)}<br>`;
-        const conditionIcon = mon.condition === 'существует' ? '🔴' : (mon.condition === 'утрачен' ? '🔘' : '🔴');
-        html += `🏷 Состояние: ${conditionIcon} ${escapeHtml(mon.condition)}<br>`;
-        if (mon.sculptor) html += `🎨 Скульптор: ${escapeHtml(mon.sculptor)}<br>`;
-        if (mon.year) html += `📅 Год: ${escapeHtml(mon.year)}<br>`;
-        if (mon.material) html += `🧱 Материал: ${escapeHtml(mon.material)}<br>`;
-        if (mon.heritage) html += `🏛 Охрана: ${escapeHtml(mon.heritage)}<br>`;
-        if (mon.typeInfo) html += `🏷 Тип: ${escapeHtml(mon.typeInfo)}<br>`;
-        if (mon.description) {
-            const fullDesc = escapeHtml(mon.description);
-            if (fullDesc.length > 120) {
-                const shortDesc = fullDesc.substring(0, 120);
-                const safeFullDesc = fullDesc.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-                html += `<div class="desc-container" data-full="${safeFullDesc}">📖 ${shortDesc}... <a href="#" class="expand-desc">Подробнее</a></div>`;
-            } else {
-                html += `<div>📖 ${fullDesc}</div>`;
-            }
-        }
-        html += `<i class="coords-link" data-lat="${mon.lat}" data-lon="${mon.lon}" style="cursor:pointer;color:#c12b2b;text-decoration:underline;">Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
-        if (mon.photoUrls && mon.photoUrls.length > 0) {
-            html += `<div class="popup-container"><div class="photo-gallery">`;
-            for (let i = 0; i < mon.photoUrls.length; i++) {
-                html += `<img src="${mon.photoUrls[i]}" alt="Фото" class="gallery-thumb" data-full="${mon.photoUrls[i]}" loading="lazy">`;
-            }
-            html += `</div></div>`;
-        }
-        content.innerHTML = html;
-        mobilePanel.classList.add('visible');
-        
-        // Создаём стрелочку над маркером
-        let arrow = document.getElementById('popup-arrow');
-        if (!arrow) {
-            arrow = document.createElement('div');
-            arrow.id = 'popup-arrow';
-            document.body.appendChild(arrow);
-        }
-        arrow.style.display = 'block';
-        
-        // Перемещаем карту так, чтобы маркер оказался внизу экрана,
-        // на 15% от нижнего края (т.е. на 85% высоты карты)
-        const mapHeight = map.getSize().y;
-        const shiftUp = mapHeight * 0.35; // 0.5 + 0.35 = 0.85 высоты => 15% от низа
-        const topLeft = map.containerPointToLatLng([0, 0]);
-        const bottomLeft = map.containerPointToLatLng([0, mapHeight]);
-        const latPerPixel = (topLeft.lat - bottomLeft.lat) / mapHeight;
-        const newCenterLat = mon.lat + shiftUp * latPerPixel;
-        map.setView([newCenterLat, mon.lon], map.getZoom(), { animate: false });
-        
-        // Панель прижимаем низом к стрелке, стрелка — на 20px над иконкой.
-        // Все координаты — экранные (учитываем смещение карты относительно viewport)
-        requestAnimationFrame(() => {
-            const markerPoint = map.latLngToContainerPoint([mon.lat, mon.lon]);
-            const mapRect = map.getContainer().getBoundingClientRect();
-            const markerViewY = mapRect.top + markerPoint.y; // экранный низ маркера
-            const markerViewX = mapRect.left + markerPoint.x;
-
-            const ICON_H = 50;        // высота SVG-иконки маркера
-            const ARROW_GAP = 20;     // зазор между остриём стрелки и иконкой
-            const ARROW_H = 14;       // высота стрелки (треугольник)
-
-            // Остриё стрелки — на 20px выше верха иконки
-            const arrowTipY = markerViewY - ICON_H - ARROW_GAP;
-
-            // Стрелка прикреплена к нижней границе панели
-            arrow.style.top = (arrowTipY - ARROW_H) + 'px';
-            arrow.style.left = (markerViewX - 14) + 'px';
-
-            // Панель: нижняя граница у стрелки, верх — по контенту
-            const panelBottom = arrowTipY - ARROW_H;
-            mobilePanel.style.top = 'auto';
-            mobilePanel.style.height = 'auto';
-            mobilePanel.style.bottom = (window.innerHeight - panelBottom) + 'px';
-        });
-    };
 
     // --- 1. Создаём бургер-кнопку и меню ---
     const burgerBtn = document.createElement('button');
