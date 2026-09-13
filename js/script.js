@@ -93,6 +93,21 @@ function getMarkerIcon(type, condition) {
     }
 }
 
+// Обновление видимости стрелок галереи в зависимости от положения скролла.
+// Объявлена на верхнем уровне, чтобы её могли вызывать и initLightbox,
+// и обработчик popupopen в init().
+function updateGalleryArrows(gallery) {
+    const wrapper = gallery.closest('.photo-gallery-wrapper');
+    if (!wrapper) return;
+    const prev = wrapper.querySelector('.gallery-prev');
+    const next = wrapper.querySelector('.gallery-next');
+    const atStart = gallery.scrollLeft <= 2;
+    const atEnd = gallery.scrollLeft + gallery.clientWidth >= gallery.scrollWidth - 2;
+    if (prev) prev.classList.toggle('hidden', atStart);
+    if (next) next.classList.toggle('hidden', atEnd);
+}
+
+
 // Инициализация карты
 function initMap() {
 	
@@ -408,11 +423,10 @@ function getFilteredMonuments() {
 
 function updateMapAndList() {
     const filtered = getFilteredMonuments();
-    displayMonuments(filtered);   // обновляем карту
+    displayMonuments(filtered);
     if (sidebarVisible) {
-        renderList();             // если панель открыта – обновляем список
+        renderList();
     } else {
-        // даже если панель закрыта, обновим заголовок в DOM, чтобы при открытии он был актуальным
         const totalAll = allMonuments.length;
         const filteredCount = filtered.length;
         const headerElement = document.querySelector('.sidebar-header h3');
@@ -420,6 +434,10 @@ function updateMapAndList() {
             headerElement.textContent = `Список памятников (${filteredCount}/${totalAll})`;
         }
     }
+    
+    // Обновляем попап геолокации, если он есть — чтобы список ближайших
+    // всегда соответствовал текущим фильтрам
+    renderNearestPopup();
 }
 
 async function loadPhotoAttribution() {
@@ -503,14 +521,25 @@ function generatePopupHtml(mon) {
         }
     }
     html += `<i class="coords-link" data-lat="${mon.lat}" data-lon="${mon.lon}" style="cursor:pointer;color:#c12b2b;text-decoration:underline;">Координаты: ${mon.lat.toFixed(5)}, ${mon.lon.toFixed(5)}</i><br>`;
-    if (mon.photoUrls && mon.photoUrls.length > 0) {
-        html += `<div class="photo-gallery">`;
-        for (let i = 0; i < mon.photoUrls.length; i++) {
-            const imgPath = mon.photoUrls[i];
-            html += `<img src="${imgPath}" alt="Фото памятника" class="gallery-thumb" data-full="${imgPath}" loading="lazy">`;
-        }
-        html += `</div>`;
-    }
+    
+	if (mon.photoUrls && mon.photoUrls.length > 0) {
+		const needsNav = mon.photoUrls.length > 3;
+		html += `<div class="photo-gallery-wrapper">`;
+		if (needsNav) {
+			html += `<button class="gallery-nav gallery-prev" aria-label="Назад">‹</button>`;
+		}
+		html += `<div class="photo-gallery">`;
+		for (let i = 0; i < mon.photoUrls.length; i++) {
+			const imgPath = mon.photoUrls[i];
+			html += `<img src="${imgPath}" alt="Фото памятника" class="gallery-thumb" data-full="${imgPath}" loading="lazy">`;
+		}
+		html += `</div>`;
+		if (needsNav) {
+			html += `<button class="gallery-nav gallery-next" aria-label="Вперёд">›</button>`;
+		}
+		html += `</div>`;
+	}
+	
     html += `</div>`;
     return html;
 }
@@ -659,6 +688,22 @@ function initLightbox() {
             }
         }
     });
+	// Делегирование клика по ссылкам в попапе геолокации.
+    // Работает через capture, чтобы поймать клик раньше, чем Leaflet
+    // обработает его как клик по карте.
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest('.nearest-link');
+        if (!link) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const id = link.dataset.monumentId;
+        if (window.userMarker) window.userMarker.closePopup();
+        if (window.router) {
+            window.router.goToMonument(id);
+        } else {
+            highlightMonument(id);
+        }
+    }, true);
     prevBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (currentImages.length) updateLightbox(currentIndex - 1);
@@ -719,6 +764,36 @@ function initLightbox() {
 			}
 		}
 	});
+	
+	// ==================== ГАЛЕРЕЯ: СТРЕЛКИ И КРАЯ ====================
+
+	// Клик по стрелкам галереи
+	document.addEventListener('click', (e) => {
+		const navBtn = e.target.closest('.gallery-nav');
+		if (!navBtn) return;
+		e.preventDefault();
+		e.stopPropagation();
+
+		const wrapper = navBtn.closest('.photo-gallery-wrapper');
+		if (!wrapper) return;
+		const gallery = wrapper.querySelector('.photo-gallery');
+		if (!gallery) return;
+
+		// Скроллим на ширину видимой области (одна «страница» = 3 фото)
+		const scrollAmount = gallery.clientWidth;
+		if (navBtn.classList.contains('gallery-prev')) {
+			gallery.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+		} else {
+			gallery.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+		}
+	}, true); // capture — чтобы срабатывало раньше других кликов
+
+	document.addEventListener('scroll', (e) => {
+		const g = e.target;
+		if (g.classList && g.classList.contains('photo-gallery')) {
+			updateGalleryArrows(g);
+		}
+	}, true); // capture — событие scroll не всплывает
 }
 
 // === Функции для боковой панели ===
@@ -864,6 +939,15 @@ function getStatusClass(condition) {
 async function init() {
     console.log('init: начало инициализации');
     initMap();
+	// Инициализация стрелок галереи при открытии попапа
+    map.on('popupopen', (e) => {
+        const popupEl = e.popup.getElement();
+        if (!popupEl) return;
+        // Небольшая задержка, чтобы браузер отрисовал flex-раскладку
+        setTimeout(() => {
+            popupEl.querySelectorAll('.photo-gallery').forEach(g => updateGalleryArrows(g));
+        }, 60);
+    });
     bindFilterButtons();
     initLightbox();
     await Promise.all([loadSvgIcons(), loadPhotoAttribution()]);
@@ -987,33 +1071,22 @@ function highlightMonument(id) {
         return;
     }
 
-        const marker = markerMap.get(monId);
+    const marker = markerMap.get(monId);
     if (marker) {
-        const isMobile = window.matchMedia('(max-width: 600px)').matches;
-        
-        if (isMobile) {
-            // На мобильных: кастомная панель + перемещение карты
-            if (window._mobileShowInfo) {
-                window._mobileShowInfo(monument);
-            }
+        if (marker.isPopupOpen()) {
+            // Попап уже открыт (только что кликнули по маркеру) —
+            // не трогаем карту, чтобы не было конфликта с autoPan
             markersCluster.refreshClusters();
         } else {
-            // Десктоп
-            if (marker.isPopupOpen()) {
-                // Попап уже открыт (только что кликнули по маркеру).
-                // Не трогаем карту, чтобы не было конфликта с autoPan
-                // и не закрывался попап. Просто обновляем кластеры.
-                markersCluster.refreshClusters();
-            } else {
-                // Переход по ссылке / из списка / из попапа ближайших —
-                // сами управляем показом маркера и открытием попапа
-                markersCluster.zoomToShowLayer(marker, () => {
-                    setTimeout(() => {
-                        marker.openPopup();
-                        markersCluster.refreshClusters();
-                    }, 200);
-                });
-            }
+            // Закрываем любые другие открытые попапы (например, попап
+            // геолокации), чтобы они не мешали показу нужного маркера
+            map.closePopup();
+            markersCluster.zoomToShowLayer(marker, () => {
+                setTimeout(() => {
+                    marker.openPopup();
+                    markersCluster.refreshClusters();
+                }, 200);
+            });
         }
     } else {
         console.warn('Маркер не найден в markerMap');
@@ -1313,7 +1386,6 @@ function locateUser() {
         return;
     }
 
-    // Меняем иконку на время загрузки
     const originalText = btn.innerHTML;
     btn.innerHTML = '⏳';
 
@@ -1323,12 +1395,10 @@ function locateUser() {
             const userLat = position.coords.latitude;
             const userLon = position.coords.longitude;
 
-            // Удаляем старый маркер пользователя, если он есть
             if (window.userMarker) {
                 map.removeLayer(window.userMarker);
             }
 
-            // Создаем маркер пользователя (синяя точка)
             const userIcon = L.divIcon({
                 className: 'user-location-marker',
                 html: '<div style="background: #007bff; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>',
@@ -1338,30 +1408,23 @@ function locateUser() {
 
             window.userMarker = L.marker([userLat, userLon], { icon: userIcon }).addTo(map);
 
-            // Ищем 3 ближайших памятника
-            const nearest = findNearestMonuments(userLat, userLon, 3);
+            
+            // Запоминаем координаты пользователя, чтобы потом можно было
+            // пересобирать попап при смене фильтров
+            window.userLat = userLat;
+            window.userLon = userLon;
 
-            // Формируем HTML для попапа
-            let popupHtml = `<div class="nearest-popup"><strong>Ближайшие памятники:</strong><ul>`;
-            if (nearest.length === 0) {
-                popupHtml += `<li>Памятники не найдены</li>`;
-            } else {
-                nearest.forEach(mon => {
-                    const distText = mon.distance < 1000 
-                        ? `${Math.round(mon.distance)} м` 
-                        : `${(mon.distance / 1000).toFixed(1)} км`;
-                    popupHtml += `<li><a href="#/monument/${mon.id}">${escapeHtml(mon.title)}</a> — ${distText}</li>`;
-                });
-            }
-            popupHtml += `</ul></div>`;
+            // Первичный рендер попапа (внутри использует findNearestMonuments,
+            // который уже работает по отфильтрованному списку)
+            window.userMarker.bindPopup('', { 
+                maxWidth: 500, 
+                className: 'nearest-popup-wrapper'
+            });
+            renderNearestPopup();
+            window.userMarker.openPopup();
 
-            window.userMarker.bindPopup(popupHtml, { 
-				maxWidth: 500, 
-				className: 'nearest-popup-wrapper' // Добавляем класс для стилизации
-			}).openPopup();
-
-            // Центрируем карту на пользователе
             map.setView([userLat, userLon], 14);
+			
         },
         (error) => {
             btn.innerHTML = originalText;
@@ -1370,6 +1433,37 @@ function locateUser() {
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
+}
+
+// Обновление содержимого попапа геолокации (используется и при создании,
+// и при смене фильтров, чтобы список ближайших всегда соответствовал выборке)
+function renderNearestPopup() {
+    if (!window.userMarker || !window.userLat || !window.userLon) return;
+    
+    const nearest = findNearestMonuments(window.userLat, window.userLon, 3);
+    
+    let popupHtml = `<div class="nearest-popup"><strong>Ближайшие памятники:</strong><ul>`;
+    if (nearest.length === 0) {
+        popupHtml += `<li>Нет памятников, подходящих под фильтры</li>`;
+    } else {
+        nearest.forEach(mon => {
+            const distText = mon.distance < 1000 
+                ? `${Math.round(mon.distance)} м` 
+                : `${(mon.distance / 1000).toFixed(1)} км`;
+            popupHtml += `<li><a href="#/monument/${mon.id}" data-monument-id="${mon.id}" class="nearest-link">${escapeHtml(mon.title)}</a> — ${distText}</li>`;
+        });
+    }
+    popupHtml += `</ul></div>`;
+    
+    // Если попап открыт — обновляем содержимое; если закрыт — просто меняем html
+    const wasOpen = window.userMarker.isPopupOpen();
+    window.userMarker.setPopupContent(popupHtml);
+    if (wasOpen) {
+        // setPopupContent не переоткрывает попап — заставляем Leaflet
+        // перерисовать его, закрыв и открыв заново
+        window.userMarker.closePopup();
+        window.userMarker.openPopup();
+    }
 }
 
 // Формула гаверсинуса для расчета расстояния между координатами
@@ -1385,11 +1479,13 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-// Поиск ближайших памятников
+// Поиск ближайших памятников (только среди видимых на карте сейчас)
 function findNearestMonuments(userLat, userLon, count = 3) {
-    if (!allMonuments || allMonuments.length === 0) return [];
+    // Берём не все памятники, а лишь те, что проходят текущие фильтры
+    const visible = getFilteredMonuments();
+    if (!visible || visible.length === 0) return [];
     
-    const monumentsWithDist = allMonuments.map(mon => {
+    const monumentsWithDist = visible.map(mon => {
         const dist = getDistanceFromLatLonInMeters(userLat, userLon, mon.lat, mon.lon);
         return { ...mon, distance: dist };
     });

@@ -111,26 +111,75 @@ body {
 
 
 /* Стили для галереи изображений в попапе */
+/* ========== ГАЛЕРЕЯ С ГОРИЗОНТАЛЬНОЙ ПРОКРУТКОЙ ========== */
+.photo-gallery-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 10px;
+}
+
 .photo-gallery {
     display: flex;
-    flex-wrap: wrap;
     gap: 8px;
-    margin-top: 10px;
-    justify-content: center;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    flex: 1;
+    min-width: 0;
+    padding: 2px 0;
+    /* Прячем полосу прокрутки */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
+.photo-gallery::-webkit-scrollbar {
+    display: none;
+}
+
 .gallery-thumb {
-    width: 80px;
+    /* 3 фото в ряд: ширина = (100% минус два промежутка по 8px) / 3 */
+    flex: 0 0 calc((100% - 16px) / 3);
     height: 80px;
     object-fit: cover;
     border-radius: 6px;
     cursor: pointer;
     border: 2px solid #ddd;
     transition: transform 0.2s, border-color 0.2s;
+    box-sizing: border-box;
 }
 .gallery-thumb:hover {
     transform: scale(1.05);
     border-color: #c12b2b;
 }
+
+.gallery-nav {
+    flex-shrink: 0;
+    width: 26px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 20px;
+    line-height: 1;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.2s, visibility 0.2s;
+    user-select: none;
+}
+.gallery-nav:hover {
+    background: rgba(0, 0, 0, 0.75);
+}
+.gallery-nav.hidden {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+
 /* Модальное окно */
 #lightbox-modal {
     position: fixed;
@@ -1169,8 +1218,8 @@ body:not(.collapsed) .filter-btn.collapse-float {
         margin: 14px !important;
         width: auto !important;
         max-width: none !important;
-        font-size: 14px !important;
-        line-height: 1.5 !important;
+        font-size: 13px !important;
+        line-height: 1.45 !important;
     }
     .leaflet-popup-close-button {
         font-size: 28px !important;
@@ -1178,11 +1227,15 @@ body:not(.collapsed) .filter-btn.collapse-float {
         top: 4px !important;
         right: 4px !important;
     }
-
+	
     /* Галерея превью */
     .gallery-thumb {
-        width: 60px;
-        height: 60px;
+        height: 60px; /* ширина задаётся через flex-basis автоматически */
+    }
+    .gallery-nav {
+        width: 22px;
+        height: 34px;
+        font-size: 16px;
     }
 
     /* Светлокопия */
