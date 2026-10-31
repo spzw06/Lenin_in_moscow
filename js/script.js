@@ -1122,10 +1122,17 @@ window._showMainView = showMainView;
 // Обработчик клика по маркеру — встроен в originalDisplayMonuments
 
 // === МОБИЛЬНАЯ ЛОГИКА ===
-function initMobileUI() {
-    const isMobile = window.matchMedia('(max-width: 600px)').matches;
-    if (!isMobile) return;
+// Мобильным считаем узкий экран ИЛИ низкий экран в ландшафте (повёрнутый
+// телефон): иначе при повороте ширина становится >600px и сайт показывает
+// десктопное меню, которое не помещается по высоте.
+const mobileQuery = window.matchMedia('(max-width: 600px), (orientation: landscape) and (max-height: 500px)');
+let mobileUiInitialized = false;
 
+function initMobileUI() {
+    if (mobileUiInitialized) return;
+    if (!mobileQuery.matches) return;
+
+    mobileUiInitialized = true;
     window._isMobile = true;
 
     // Исправляем viewport
@@ -1375,6 +1382,11 @@ function initMobileUI() {
 // Запуск мобильной логики после инициализации
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(initMobileUI, 100);
+    // Если пользователь повернул телефон уже после загрузки страницы —
+    // инициализируем мобильный интерфейс при первом же переходе в ландшафт
+    mobileQuery.addEventListener('change', (e) => {
+        if (e.matches) initMobileUI();
+    });
 });
 
 // === ГЕОЛОКАЦИЯ И ПОИСК БЛИЖАЙШИХ ПАМЯТНИКОВ ===

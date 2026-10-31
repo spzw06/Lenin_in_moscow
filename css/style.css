@@ -1402,3 +1402,225 @@ body:not(.collapsed) .filter-btn.collapse-float {
         border-radius: 16px;
     }
 }
+
+/* ==================== АЛЬБОМНАЯ ОРИЕНТАЦИЯ НА ТЕЛЕФОНЕ ==================== */
+/* При повороте телефона горизонтально ширина экрана обычно > 600px, и сайт
+   начинал рендерить десктопную вёрстку: полное меню фильтров на две строки
+   и широкие панели. Эти правила включаются по высоте экрана (максимум ~500px
+   в ландшафте), а не по ширине, поэтому телефон в боковом положении
+   продолжает использовать мобильный интерфейс. */
+@media (max-height: 500px) and (orientation: landscape) {
+    /* 1. Мобильная шапка с бургером вместо десктопной двухстрочной */
+    .map-header {
+        padding: 4px 12px;
+        border-bottom-width: 2px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        position: relative;
+    }
+    .map-header .collapse-float {
+        position: static;
+        top: auto;
+        left: auto;
+        order: -1;
+        flex-shrink: 0;
+    }
+    body.collapsed .map-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 12px;
+        min-height: 0;
+    }
+    .map-header h1 {
+        font-size: 0.9rem;
+        margin-bottom: 0;
+        flex: 1;
+        min-width: 0;
+        order: 1;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .map-header p {
+        display: none; /* подзаголовок скрываем — экономим вертикаль */
+    }
+    .burger-btn {
+        order: 2;
+    }
+
+    /* Бургер-кнопка внутри заголовка (как на мобильной версии) */
+    .burger-btn {
+        position: static;
+        width: auto;
+        height: 26px;
+        padding: 3px 12px;
+        border-radius: 30px;
+        font-size: 0.7rem;
+        flex-shrink: 0;
+        background: transparent;
+        border: 1px solid #c12b2b;
+        color: #c12b2b;
+        box-shadow: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    .burger-btn:active {
+        background: #c12b2b;
+        color: #fff;
+    }
+
+    /* 2. Десктопные панели фильтров скрыты — всё управление в бургере */
+    .filter-bar,
+    .extra-filters {
+        display: none !important;
+    }
+    /* Кнопка «Список» в свёрнутой шапке десктопа не нужна (есть в бургере) */
+    body.collapsed #toggle-list-btn-collapsed {
+        display: none !important;
+    }
+
+    /* 3. Боковая панель списка — компактная, не занимает полэкрана */
+    .list-sidebar {
+        width: min(360px, 60vw);
+    }
+
+    /* 4. Бургер-меню — компактная колонка справа, с учётом низкой высоты */
+    .burger-menu {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: min(260px, 55vw);
+        height: 100%;
+        background: #fff;
+        z-index: 3001;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        padding: 44px 14px 8px;
+        box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+        overflow-y: auto;
+    }
+    .burger-menu.open {
+        transform: translateX(0);
+    }
+    .burger-menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 3000;
+        display: none;
+    }
+    .burger-menu-overlay.open {
+        display: block;
+    }
+    .burger-close {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        width: 32px;
+        height: 32px;
+        background: none;
+        border: none;
+        font-size: 1.3rem;
+        cursor: pointer;
+        color: #333;
+    }
+    .burger-section {
+        margin-bottom: 8px;
+    }
+    .burger-section-title {
+        font-size: 0.7rem;
+        color: #888;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+        font-weight: 600;
+    }
+    .burger-btn-item {
+        display: block;
+        width: 100%;
+        padding: 3px 12px;
+        margin-bottom: 2px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 30px;
+        font-size: 0.7rem;
+        text-align: left;
+        cursor: pointer;
+        color: #333;
+        transition: all 0.2s;
+        height: 26px;
+        font-family: inherit;
+        font-weight: 500;
+    }
+    .burger-btn-item:active,
+    .burger-btn-item.active {
+        background: #c12b2b;
+        color: #fff;
+        border-color: #c12b2b;
+    }
+    .burger-select {
+        display: block;
+        width: 100%;
+        height: 26px;
+        padding: 0 10px;
+        border: 1px solid #ddd;
+        border-radius: 30px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: #333;
+        background: #f5f5f5;
+        margin-bottom: 2px;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    /* 5. Popup — компактный, по высоте экрана */
+    .leaflet-popup-content {
+        margin: 12px !important;
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+    }
+    .monument-popup-wrapper .leaflet-popup-content,
+    .nearest-popup-wrapper .leaflet-popup-content {
+        width: min(80vw, 420px) !important;
+        max-height: 60vh;
+        overflow-y: auto;
+        margin: 8px 10px !important;
+    }
+    .monument-popup-wrapper .leaflet-popup-content-wrapper {
+        border-radius: 14px;
+    }
+
+    /* 6. Тест — ограничиваем высоту модалки по экрану */
+    .quiz-modal-content {
+        max-height: 92vh;
+        padding: 12px 16px;
+        width: min(90%, 600px);
+    }
+    .quiz-photo {
+        max-height: 30vh;
+    }
+
+    /* 7. Lightbox — стрелки компактнее */
+    .lightbox-prev,
+    .lightbox-next {
+        font-size: 24px;
+        padding: 8px 10px;
+    }
+    .lightbox-close {
+        top: -34px;
+        font-size: 28px;
+    }
+}
